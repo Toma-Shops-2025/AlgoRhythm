@@ -1,14 +1,22 @@
 import { Link, useLocation } from "@tanstack/react-router";
-import { Compass, Plus, User, Search, Home } from "lucide-react";
+import { Plus, User, Search, Home } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
 
-const items = [
+type NavItem = {
+  to: string;
+  label: string;
+  icon: typeof Home;
+  primary?: boolean;
+  authed?: boolean;
+};
+
+const items: NavItem[] = [
   { to: "/", label: "Feed", icon: Home },
   { to: "/discover", label: "Discover", icon: Search },
   { to: "/upload", label: "Post", icon: Plus, primary: true, authed: true },
   { to: "/me", label: "Me", icon: User, authed: true },
-] as const;
+];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   return (
