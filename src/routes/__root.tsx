@@ -7,6 +7,10 @@ import {
   HeadContent,
   Scripts,
 } from "@tanstack/react-router";
+import { useEffect } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { Toaster } from "@/components/ui/sonner";
+import { supabase } from "@/integrations/supabase/client";
 
 import appCss from "../styles.css?url";
 
@@ -71,20 +75,38 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   head: () => ({
     meta: [
       { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Lovable App" },
-      { name: "description", content: "Lovable Generated Project" },
-      { name: "author", content: "Lovable" },
-      { property: "og:title", content: "Lovable App" },
-      { property: "og:description", content: "Lovable Generated Project" },
+      { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
+      { name: "theme-color", content: "#0a0a0a" },
+      { title: "AlgoRhythm — AI music, made viral" },
+      {
+        name: "description",
+        content:
+          "AlgoRhythm is the home for AI-made music and music videos. Discover, share, and rise — a vertical feed built for AI creators.",
+      },
+      { property: "og:site_name", content: "AlgoRhythm" },
+      { property: "og:title", content: "AlgoRhythm — AI music, made viral" },
+      {
+        property: "og:description",
+        content: "The vertical feed for AI-made music and music videos.",
+      },
       { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary" },
-      { name: "twitter:site", content: "@Lovable" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
     links: [
       {
         rel: "stylesheet",
         href: appCss,
+      },
+    ],
+    scripts: [
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "WebSite",
+          name: "AlgoRhythm",
+          description: "The vertical feed for AI-made music and music videos.",
+        }),
       },
     ],
   }),
@@ -96,11 +118,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" className="dark">
       <head>
         <HeadContent />
       </head>
-      <body>
+      <body className="bg-background text-foreground">
         {children}
         <Scripts />
       </body>
@@ -113,7 +135,22 @@ function RootComponent() {
 
   return (
     <QueryClientProvider client={queryClient}>
+      <AuthListener />
       <Outlet />
+      <Toaster richColors theme="dark" position="top-center" />
     </QueryClientProvider>
   );
+}
+
+function AuthListener() {
+  const router = useRouter();
+  const qc = useQueryClient();
+  useEffect(() => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(() => {
+      router.invalidate();
+      qc.invalidateQueries();
+    });
+    return () => subscription.unsubscribe();
+  }, [router, qc]);
+  return null;
 }
