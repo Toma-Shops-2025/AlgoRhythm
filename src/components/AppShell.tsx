@@ -1,4 +1,3 @@
-import { Link, useLocation } from "@tanstack/react-router";
 import { Plus, User, Search, Home } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
@@ -28,19 +27,18 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 }
 
 function BottomNav() {
-  const location = useLocation();
+  const pathname = typeof window !== "undefined" ? window.location.pathname : "/";
   const { user } = useAuth();
   return (
     <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border/60 bg-background/85 backdrop-blur-xl">
       <ul className="mx-auto grid max-w-md grid-cols-4 px-2 pb-[env(safe-area-inset-bottom)]">
         {items.map(({ to, label, icon: Icon, primary, authed }) => {
           const target = authed && !user ? "/login" : to;
-          const active = location.pathname === to;
+          const active = pathname === to;
           return (
             <li key={to} className="flex">
-              <Link
-                to={target}
-                search={authed && !user ? { redirect: to } : undefined}
+              <a
+                href={target}
                 className={cn(
                   "flex flex-1 flex-col items-center justify-center gap-1 py-3 text-[10px] uppercase tracking-[0.18em] transition-colors",
                   active ? "text-gold" : "text-muted-foreground hover:text-foreground",
@@ -54,7 +52,7 @@ function BottomNav() {
                   <Icon className="h-5 w-5" />
                 )}
                 <span>{label}</span>
-              </Link>
+              </a>
             </li>
           );
         })}
