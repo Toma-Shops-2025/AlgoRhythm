@@ -1,8 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { Heart, MessageCircle, Share2, Play, Pause, Volume2, VolumeX } from "lucide-react";
+import { Heart, MessageCircle, Share2, Play, Volume2, VolumeX, Gift } from "lucide-react";
 import { AudioVisualizer } from "./AudioVisualizer";
 import { Watermark } from "./Logo";
+import { TipDialog } from "./TipDialog";
+import { useAuth } from "@/lib/auth";
+import { useNavigate } from "@tanstack/react-router";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -49,6 +52,9 @@ export function FeedItem({
   const videoRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const [playing, setPlaying] = useState(false);
+  const [tipOpen, setTipOpen] = useState(false);
+  const { user } = useAuth();
+  const navigate = useNavigate();
 
   useEffect(() => {
     const el = post.type === "video" ? videoRef.current : audioRef.current;
@@ -129,6 +135,17 @@ export function FeedItem({
         <ActionButton onClick={onComment} count={post.comment_count}>
           <MessageCircle className="h-7 w-7" />
         </ActionButton>
+        {post.creator && user?.id !== post.creator.id && (
+          <ActionButton
+            ariaLabel="Tip creator"
+            onClick={() => {
+              if (!user) return navigate({ to: "/login" });
+              setTipOpen(true);
+            }}
+          >
+            <Gift className="h-7 w-7 text-gold" />
+          </ActionButton>
+        )}
         <ActionButton onClick={share} ariaLabel="Share post">
           <Share2 className="h-7 w-7" />
         </ActionButton>
@@ -163,6 +180,15 @@ export function FeedItem({
           </div>
         )}
       </div>
+      {post.creator && (
+        <TipDialog
+          open={tipOpen}
+          onOpenChange={setTipOpen}
+          creatorId={post.creator.id}
+          creatorName={post.creator.display_name}
+          postId={post.id}
+        />
+      )}
     </section>
   );
 }
