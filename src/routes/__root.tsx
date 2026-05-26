@@ -91,6 +91,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
+      { property: "twitter:title", content: "AlgoRhythm — AI music, made viral" },
+      { property: "twitter:description", content: "The vertical feed for AI-made music and music videos." },
     ],
     links: [
       {
@@ -103,8 +105,9 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         type: "application/ld+json",
         children: JSON.stringify({
           "@context": "https://schema.org",
-          "@type": "WebSite",
+          "@type": "Organization",
           name: "AlgoRhythm",
+          url: "https://myalgorhythm.lovable.app",
           description: "The vertical feed for AI-made music and music videos.",
         }),
       },
@@ -123,7 +126,7 @@ function RootShell({ children }: { children: React.ReactNode }) {
         <HeadContent />
       </head>
       <body className="bg-background text-foreground">
-        {children}
+        <main>{children}</main>
         <Scripts />
       </body>
     </html>
