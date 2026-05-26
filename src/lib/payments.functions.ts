@@ -66,10 +66,10 @@ export const createProCheckout = createServerFn({ method: "POST" })
         ui_mode: "embedded_page",
         return_url: data.returnUrl,
         customer: customerId,
-        managed_payments: { enabled: true },
         metadata: { userId: context.userId, kind: "pro" },
         subscription_data: { metadata: { userId: context.userId, kind: "pro" } },
-      });
+        managed_payments: { enabled: true },
+      } as Stripe.Checkout.SessionCreateParams & { managed_payments: { enabled: boolean } });
       return { clientSecret: session.client_secret ?? "" };
     } catch (error) {
       return { error: getStripeErrorMessage(error) };
@@ -102,12 +102,12 @@ export const createCreatorSubCheckout = createServerFn({ method: "POST" })
         ui_mode: "embedded_page",
         return_url: data.returnUrl,
         customer: customerId,
-        managed_payments: { enabled: true },
         metadata: { userId: context.userId, kind: "creator", creatorId: data.creatorId },
         subscription_data: {
           metadata: { userId: context.userId, kind: "creator", creatorId: data.creatorId },
         },
-      });
+        managed_payments: { enabled: true },
+      } as Stripe.Checkout.SessionCreateParams & { managed_payments: { enabled: boolean } });
       return { clientSecret: session.client_secret ?? "" };
     } catch (error) {
       return { error: getStripeErrorMessage(error) };
@@ -155,7 +155,6 @@ export const createTipCheckout = createServerFn({ method: "POST" })
         ui_mode: "embedded_page",
         return_url: data.returnUrl,
         customer: customerId,
-        managed_payments: { enabled: true },
         payment_intent_data: { description: "AlgoRhythm tip" },
         metadata: {
           userId: context.userId,
@@ -166,7 +165,8 @@ export const createTipCheckout = createServerFn({ method: "POST" })
           feeCents: String(fee),
           netCents: String(net),
         },
-      });
+        managed_payments: { enabled: true },
+      } as Stripe.Checkout.SessionCreateParams & { managed_payments: { enabled: boolean } });
       return { clientSecret: session.client_secret ?? "" };
     } catch (error) {
       return { error: getStripeErrorMessage(error) };
