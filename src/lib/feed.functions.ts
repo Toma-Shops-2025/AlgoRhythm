@@ -83,7 +83,9 @@ export const searchAll = createServerFn({ method: "GET" })
     z.object({ q: z.string().min(1).max(80) }).parse(input),
   )
   .handler(async ({ data }) => {
-    const term = `%${data.q.replace(/[%_]/g, "")}%`;
+    const safe = data.q.replace(/[^\p{L}\p{N}\s]/gu, "").trim();
+    if (!safe) return { posts: [], profiles: [] };
+    const term = `%${safe}%`;
     const [{ data: posts }, { data: profiles }] = await Promise.all([
       supabaseAdmin
         .from("posts")
