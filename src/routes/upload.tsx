@@ -9,7 +9,17 @@ import { toast } from "sonner";
 import { Music, Film, Image as ImageIcon, Loader2 } from "lucide-react";
 
 export const Route = createFileRoute("/upload")({
-  head: () => ({ meta: [{ title: "Post — AlgoRhythm" }] }),
+  head: () => ({
+    meta: [
+      { title: "Post — AlgoRhythm" },
+      { name: "description", content: "Upload your AI-made track or music video to the AlgoRhythm feed." },
+      { property: "og:title", content: "Post to AlgoRhythm" },
+      { property: "og:description", content: "Publish your AI music or video to the AlgoRhythm feed." },
+      { property: "og:url", content: "https://myalgorhythm.lovable.app/upload" },
+      { name: "robots", content: "noindex" },
+    ],
+    links: [{ rel: "canonical", href: "https://myalgorhythm.lovable.app/upload" }],
+  }),
   component: UploadPage,
 });
 
