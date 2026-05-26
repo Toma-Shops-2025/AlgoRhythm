@@ -2,6 +2,10 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
+const STORAGE_BASE = `${process.env.SUPABASE_URL ?? ""}/storage/v1/object/public/`;
+const isBucketUrl = (bucket: string) => (u: string) =>
+  STORAGE_BASE !== "/storage/v1/object/public/" && u.startsWith(`${STORAGE_BASE}${bucket}/`);
+
 export const createPost = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(
@@ -18,8 +22,15 @@ export const createPost = createServerFn({ method: "POST" })
       z
         .object({
           type: z.enum(["audio", "video"]),
-          mediaUrl: z.string().url(),
-          coverUrl: z.string().url().nullish(),
+          mediaUrl: z
+            .string()
+            .url()
+            .refine(isBucketUrl("media"), "mediaUrl must point to the media bucket"),
+          coverUrl: z
+            .string()
+            .url()
+            .refine(isBucketUrl("covers"), "coverUrl must point to the covers bucket")
+            .nullish(),
           title: z.string().min(1).max(140),
           description: z.string().max(2000).optional(),
           tags: z.array(z.string().min(1).max(40)).max(12).optional(),
