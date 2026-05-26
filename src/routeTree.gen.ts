@@ -17,6 +17,7 @@ import { Route as FeedRouteImport } from './routes/feed'
 import { Route as DiscoverRouteImport } from './routes/discover'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as UHandleRouteImport } from './routes/u.$handle'
+import { Route as PIdRouteImport } from './routes/p.$id'
 
 const UploadRoute = UploadRouteImport.update({
   id: '/upload',
@@ -58,6 +59,11 @@ const UHandleRoute = UHandleRouteImport.update({
   path: '/u/$handle',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PIdRoute = PIdRouteImport.update({
+  id: '/p/$id',
+  path: '/p/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -67,6 +73,7 @@ export interface FileRoutesByFullPath {
   '/me': typeof MeRoute
   '/signup': typeof SignupRoute
   '/upload': typeof UploadRoute
+  '/p/$id': typeof PIdRoute
   '/u/$handle': typeof UHandleRoute
 }
 export interface FileRoutesByTo {
@@ -77,6 +84,7 @@ export interface FileRoutesByTo {
   '/me': typeof MeRoute
   '/signup': typeof SignupRoute
   '/upload': typeof UploadRoute
+  '/p/$id': typeof PIdRoute
   '/u/$handle': typeof UHandleRoute
 }
 export interface FileRoutesById {
@@ -88,6 +96,7 @@ export interface FileRoutesById {
   '/me': typeof MeRoute
   '/signup': typeof SignupRoute
   '/upload': typeof UploadRoute
+  '/p/$id': typeof PIdRoute
   '/u/$handle': typeof UHandleRoute
 }
 export interface FileRouteTypes {
@@ -100,6 +109,7 @@ export interface FileRouteTypes {
     | '/me'
     | '/signup'
     | '/upload'
+    | '/p/$id'
     | '/u/$handle'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -110,6 +120,7 @@ export interface FileRouteTypes {
     | '/me'
     | '/signup'
     | '/upload'
+    | '/p/$id'
     | '/u/$handle'
   id:
     | '__root__'
@@ -120,6 +131,7 @@ export interface FileRouteTypes {
     | '/me'
     | '/signup'
     | '/upload'
+    | '/p/$id'
     | '/u/$handle'
   fileRoutesById: FileRoutesById
 }
@@ -131,6 +143,7 @@ export interface RootRouteChildren {
   MeRoute: typeof MeRoute
   SignupRoute: typeof SignupRoute
   UploadRoute: typeof UploadRoute
+  PIdRoute: typeof PIdRoute
   UHandleRoute: typeof UHandleRoute
 }
 
@@ -192,6 +205,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof UHandleRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/p/$id': {
+      id: '/p/$id'
+      path: '/p/$id'
+      fullPath: '/p/$id'
+      preLoaderRoute: typeof PIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -203,6 +223,7 @@ const rootRouteChildren: RootRouteChildren = {
   MeRoute: MeRoute,
   SignupRoute: SignupRoute,
   UploadRoute: UploadRoute,
+  PIdRoute: PIdRoute,
   UHandleRoute: UHandleRoute,
 }
 export const routeTree = rootRouteImport
