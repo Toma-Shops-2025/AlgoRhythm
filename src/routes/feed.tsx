@@ -16,7 +16,11 @@ export const Route = createFileRoute("/feed")({
     meta: [
       { title: "Feed — AlgoRhythm" },
       { name: "description", content: "The vertical feed for AI-made music and music videos." },
+      { property: "og:title", content: "Feed — AlgoRhythm" },
+      { property: "og:description", content: "Swipe through AI-made tracks and music videos from creators worldwide." },
+      { property: "og:url", content: "https://myalgorhythm.lovable.app/feed" },
     ],
+    links: [{ rel: "canonical", href: "https://myalgorhythm.lovable.app/feed" }],
   }),
   component: FeedPage,
 });
@@ -103,6 +107,7 @@ function FeedPage() {
 
   return (
     <AppShell>
+      <h1 className="sr-only">AI Music and Video Feed</h1>
       <div
         ref={containerRef}
         className="h-dvh snap-y snap-mandatory overflow-y-scroll"

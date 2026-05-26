@@ -18,7 +18,20 @@ export const Route = createFileRoute("/p/$id")({
       { title: `AlgoRhythm — track ${params.id.slice(0, 8)}` },
       { name: "description", content: "An AI-made track or video on AlgoRhythm." },
       { property: "og:title", content: "Listen on AlgoRhythm" },
+      { property: "og:description", content: "An AI-made track or video on AlgoRhythm." },
+      { property: "og:url", content: `https://myalgorhythm.lovable.app/p/${params.id}` },
       { property: "og:type", content: "music.song" },
+    ],
+    links: [{ rel: "canonical", href: `https://myalgorhythm.lovable.app/p/${params.id}` }],
+    scripts: [
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "MusicRecording",
+          url: `https://myalgorhythm.lovable.app/p/${params.id}`,
+        }),
+      },
     ],
   }),
   component: PostPage,

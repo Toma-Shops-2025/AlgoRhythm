@@ -4,6 +4,12 @@ import { Wordmark } from "@/components/Logo";
 import { Sparkles } from "lucide-react";
 
 export const Route = createFileRoute("/")({
+  head: () => ({
+    meta: [
+      { property: "og:url", content: "https://myalgorhythm.lovable.app/" },
+    ],
+    links: [{ rel: "canonical", href: "https://myalgorhythm.lovable.app/" }],
+  }),
   component: Index,
 });
 

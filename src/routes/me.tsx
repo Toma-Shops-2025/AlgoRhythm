@@ -10,7 +10,18 @@ import { LogOut, Settings, Plus } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/me")({
-  head: () => ({ meta: [{ title: "Me — AlgoRhythm" }] }),
+  head: () => ({
+    meta: [
+      { title: "Your profile — AlgoRhythm" },
+      { name: "description", content: "Manage your AlgoRhythm creator profile, posts, and account." },
+      { property: "og:title", content: "Your profile — AlgoRhythm" },
+      { property: "og:description", content: "Manage your creator profile on AlgoRhythm." },
+      { property: "og:type", content: "profile" },
+      { property: "og:url", content: "https://myalgorhythm.lovable.app/me" },
+      { name: "robots", content: "noindex" },
+    ],
+    links: [{ rel: "canonical", href: "https://myalgorhythm.lovable.app/me" }],
+  }),
   component: MePage,
 });
 
@@ -79,11 +90,11 @@ function MePage() {
               <input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && onAvatar(e.target.files[0])} />
             </label>
             <div>
-              <div className="text-lg font-medium">{p.display_name}</div>
+              <h1 className="text-lg font-medium">{p.display_name}</h1>
               <div className="text-sm text-gold">@{p.handle}</div>
             </div>
           </div>
-          <button onClick={() => signOut().then(() => navigate({ to: "/" }))}
+          <button aria-label="Sign out" onClick={() => signOut().then(() => navigate({ to: "/" }))}
             className="grid h-9 w-9 place-items-center rounded-md border border-border text-muted-foreground">
             <LogOut className="h-4 w-4" />
           </button>

@@ -14,6 +14,22 @@ export const Route = createFileRoute("/u/$handle")({
       { name: "description", content: `AI-made music and videos by @${params.handle} on AlgoRhythm.` },
       { property: "og:title", content: `@${params.handle} on AlgoRhythm` },
       { property: "og:description", content: `AI music and videos by @${params.handle}.` },
+      { property: "og:type", content: "profile" },
+      { property: "og:url", content: `https://myalgorhythm.lovable.app/u/${params.handle}` },
+      { property: "profile:username", content: params.handle },
+    ],
+    links: [{ rel: "canonical", href: `https://myalgorhythm.lovable.app/u/${params.handle}` }],
+    scripts: [
+      {
+        type: "application/ld+json",
+        children: JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "Person",
+          name: params.handle,
+          alternateName: `@${params.handle}`,
+          url: `https://myalgorhythm.lovable.app/u/${params.handle}`,
+        }),
+      },
     ],
   }),
   component: ProfilePage,
@@ -54,7 +70,7 @@ function ProfilePage() {
             </div>
           )}
           <div className="flex-1">
-            <div className="text-lg font-medium">{p.display_name}</div>
+            <h1 className="text-lg font-medium">{p.display_name}</h1>
             <div className="text-sm text-gold">@{p.handle}</div>
           </div>
           {user?.id !== p.id && (

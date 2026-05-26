@@ -40,7 +40,7 @@ export function CommentsSheet({ postId, open, onClose }: { postId: string | null
       <div className="mt-auto max-h-[75dvh] rounded-t-2xl border-t border-gold/20 bg-card" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between border-b border-border px-4 py-3">
           <div className="text-sm font-medium">Comments</div>
-          <button onClick={onClose}><X className="h-5 w-5" /></button>
+          <button aria-label="Close comments" onClick={onClose}><X className="h-5 w-5" /></button>
         </div>
         <div className="max-h-[55dvh] overflow-y-auto px-4 py-2">
           {data?.comments.length === 0 && (
@@ -64,7 +64,7 @@ export function CommentsSheet({ postId, open, onClose }: { postId: string | null
           <input value={body} onChange={(e) => setBody(e.target.value)} placeholder={user ? "Add a comment…" : "Sign in to comment"}
             disabled={!user}
             className="flex-1 rounded-full border border-border bg-background px-4 py-2 text-sm outline-none focus:border-gold/50 disabled:opacity-60" />
-          <button type="submit" className="grid h-9 w-9 place-items-center rounded-full bg-gradient-gold text-primary-foreground">
+          <button type="submit" aria-label="Post comment" className="grid h-9 w-9 place-items-center rounded-full bg-gradient-gold text-primary-foreground">
             <Send className="h-4 w-4" />
           </button>
         </form>
