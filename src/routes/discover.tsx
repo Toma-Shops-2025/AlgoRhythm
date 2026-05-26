@@ -7,7 +7,16 @@ import { getFeed, searchAll } from "@/lib/feed.functions";
 import { Search } from "lucide-react";
 
 export const Route = createFileRoute("/discover")({
-  head: () => ({ meta: [{ title: "Discover — AlgoRhythm" }] }),
+  head: () => ({
+    meta: [
+      { title: "Discover — AlgoRhythm" },
+      { name: "description", content: "Discover trending AI-made tracks, music videos, and creators on AlgoRhythm." },
+      { property: "og:title", content: "Discover — AlgoRhythm" },
+      { property: "og:description", content: "Trending AI music and creators on AlgoRhythm." },
+      { property: "og:url", content: "https://myalgorhythm.lovable.app/discover" },
+    ],
+    links: [{ rel: "canonical", href: "https://myalgorhythm.lovable.app/discover" }],
+  }),
   component: DiscoverPage,
 });
 
