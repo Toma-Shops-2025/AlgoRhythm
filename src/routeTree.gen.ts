@@ -16,6 +16,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as FeedRouteImport } from './routes/feed'
 import { Route as DiscoverRouteImport } from './routes/discover'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as UHandleRouteImport } from './routes/u.$handle'
 
 const UploadRoute = UploadRouteImport.update({
   id: '/upload',
@@ -52,6 +53,11 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const UHandleRoute = UHandleRouteImport.update({
+  id: '/u/$handle',
+  path: '/u/$handle',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -61,6 +67,7 @@ export interface FileRoutesByFullPath {
   '/me': typeof MeRoute
   '/signup': typeof SignupRoute
   '/upload': typeof UploadRoute
+  '/u/$handle': typeof UHandleRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -70,6 +77,7 @@ export interface FileRoutesByTo {
   '/me': typeof MeRoute
   '/signup': typeof SignupRoute
   '/upload': typeof UploadRoute
+  '/u/$handle': typeof UHandleRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -80,6 +88,7 @@ export interface FileRoutesById {
   '/me': typeof MeRoute
   '/signup': typeof SignupRoute
   '/upload': typeof UploadRoute
+  '/u/$handle': typeof UHandleRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -91,8 +100,17 @@ export interface FileRouteTypes {
     | '/me'
     | '/signup'
     | '/upload'
+    | '/u/$handle'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/discover' | '/feed' | '/login' | '/me' | '/signup' | '/upload'
+  to:
+    | '/'
+    | '/discover'
+    | '/feed'
+    | '/login'
+    | '/me'
+    | '/signup'
+    | '/upload'
+    | '/u/$handle'
   id:
     | '__root__'
     | '/'
@@ -102,6 +120,7 @@ export interface FileRouteTypes {
     | '/me'
     | '/signup'
     | '/upload'
+    | '/u/$handle'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -112,6 +131,7 @@ export interface RootRouteChildren {
   MeRoute: typeof MeRoute
   SignupRoute: typeof SignupRoute
   UploadRoute: typeof UploadRoute
+  UHandleRoute: typeof UHandleRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -165,6 +185,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/u/$handle': {
+      id: '/u/$handle'
+      path: '/u/$handle'
+      fullPath: '/u/$handle'
+      preLoaderRoute: typeof UHandleRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -176,6 +203,7 @@ const rootRouteChildren: RootRouteChildren = {
   MeRoute: MeRoute,
   SignupRoute: SignupRoute,
   UploadRoute: UploadRoute,
+  UHandleRoute: UHandleRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
