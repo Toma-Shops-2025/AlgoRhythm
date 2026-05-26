@@ -114,6 +114,7 @@ export function FeedItem({
 
       {/* mute */}
       <button
+        aria-label={muted ? "Unmute" : "Mute"}
         onClick={(e) => { e.stopPropagation(); onToggleMute(); }}
         className="absolute left-4 top-4 z-20 grid h-9 w-9 place-items-center rounded-full bg-black/40 text-white backdrop-blur"
       >
@@ -128,7 +129,7 @@ export function FeedItem({
         <ActionButton onClick={onComment} count={post.comment_count}>
           <MessageCircle className="h-7 w-7" />
         </ActionButton>
-        <ActionButton onClick={share}>
+        <ActionButton onClick={share} ariaLabel="Share post">
           <Share2 className="h-7 w-7" />
         </ActionButton>
       </div>
@@ -167,10 +168,10 @@ export function FeedItem({
 }
 
 function ActionButton({
-  children, count, onClick, active,
-}: { children: React.ReactNode; count?: number; onClick: () => void; active?: boolean }) {
+  children, count, onClick, active, ariaLabel,
+}: { children: React.ReactNode; count?: number; onClick: () => void; active?: boolean; ariaLabel?: string }) {
   return (
-    <button onClick={(e) => { e.stopPropagation(); onClick(); }} className="flex flex-col items-center gap-1">
+    <button aria-label={ariaLabel} onClick={(e) => { e.stopPropagation(); onClick(); }} className="flex flex-col items-center gap-1">
       <span className={cn("grid h-12 w-12 place-items-center rounded-full bg-black/35 backdrop-blur", active && "bg-rose-500/15")}>
         {children}
       </span>

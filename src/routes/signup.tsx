@@ -6,7 +6,17 @@ import { Wordmark } from "@/components/Logo";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/signup")({
-  head: () => ({ meta: [{ title: "Create your profile — AlgoRhythm" }] }),
+  head: () => ({
+    meta: [
+      { title: "Create your profile — AlgoRhythm" },
+      { name: "description", content: "Create your AlgoRhythm profile and start posting AI-made music and videos to a viral vertical feed." },
+      { property: "og:title", content: "Create your profile — AlgoRhythm" },
+      { property: "og:description", content: "Join AlgoRhythm — the home for AI music creators." },
+      { property: "og:url", content: "https://myalgorhythm.lovable.app/signup" },
+      { name: "robots", content: "noindex" },
+    ],
+    links: [{ rel: "canonical", href: "https://myalgorhythm.lovable.app/signup" }],
+  }),
   component: SignupPage,
 });
 
