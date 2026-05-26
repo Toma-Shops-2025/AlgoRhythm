@@ -152,6 +152,27 @@ export type Database = {
           },
         ]
       }
+      processed_stripe_events: {
+        Row: {
+          environment: string
+          event_id: string
+          processed_at: string
+          type: string
+        }
+        Insert: {
+          environment: string
+          event_id: string
+          processed_at?: string
+          type: string
+        }
+        Update: {
+          environment?: string
+          event_id?: string
+          processed_at?: string
+          type?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -194,35 +215,98 @@ export type Database = {
         }
         Relationships: []
       }
+      subscriptions: {
+        Row: {
+          cancel_at_period_end: boolean
+          created_at: string
+          creator_id: string | null
+          current_period_end: string | null
+          environment: string
+          id: string
+          kind: string
+          price_id: string
+          status: string
+          stripe_customer_id: string
+          stripe_subscription_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          cancel_at_period_end?: boolean
+          created_at?: string
+          creator_id?: string | null
+          current_period_end?: string | null
+          environment?: string
+          id?: string
+          kind: string
+          price_id: string
+          status: string
+          stripe_customer_id: string
+          stripe_subscription_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          cancel_at_period_end?: boolean
+          created_at?: string
+          creator_id?: string | null
+          current_period_end?: string | null
+          environment?: string
+          id?: string
+          kind?: string
+          price_id?: string
+          status?: string
+          stripe_customer_id?: string
+          stripe_subscription_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       tips: {
         Row: {
           amount_cents: number
           created_at: string
+          creator_net_cents: number
           currency: string
+          environment: string
           from_user: string
           id: string
+          platform_fee_cents: number
           post_id: string | null
           status: string
+          stripe_checkout_session_id: string | null
+          stripe_payment_intent_id: string | null
           to_user: string
         }
         Insert: {
           amount_cents: number
           created_at?: string
+          creator_net_cents?: number
           currency?: string
+          environment?: string
           from_user: string
           id?: string
+          platform_fee_cents?: number
           post_id?: string | null
           status?: string
+          stripe_checkout_session_id?: string | null
+          stripe_payment_intent_id?: string | null
           to_user: string
         }
         Update: {
           amount_cents?: number
           created_at?: string
+          creator_net_cents?: number
           currency?: string
+          environment?: string
           from_user?: string
           id?: string
+          platform_fee_cents?: number
           post_id?: string | null
           status?: string
+          stripe_checkout_session_id?: string | null
+          stripe_payment_intent_id?: string | null
           to_user?: string
         }
         Relationships: [
