@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as UploadRouteImport } from './routes/upload'
 import { Route as SignupRouteImport } from './routes/signup'
+import { Route as MeRouteImport } from './routes/me'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as FeedRouteImport } from './routes/feed'
 import { Route as DiscoverRouteImport } from './routes/discover'
@@ -24,6 +25,11 @@ const UploadRoute = UploadRouteImport.update({
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
   path: '/signup',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MeRoute = MeRouteImport.update({
+  id: '/me',
+  path: '/me',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -52,6 +58,7 @@ export interface FileRoutesByFullPath {
   '/discover': typeof DiscoverRoute
   '/feed': typeof FeedRoute
   '/login': typeof LoginRoute
+  '/me': typeof MeRoute
   '/signup': typeof SignupRoute
   '/upload': typeof UploadRoute
 }
@@ -60,6 +67,7 @@ export interface FileRoutesByTo {
   '/discover': typeof DiscoverRoute
   '/feed': typeof FeedRoute
   '/login': typeof LoginRoute
+  '/me': typeof MeRoute
   '/signup': typeof SignupRoute
   '/upload': typeof UploadRoute
 }
@@ -69,20 +77,29 @@ export interface FileRoutesById {
   '/discover': typeof DiscoverRoute
   '/feed': typeof FeedRoute
   '/login': typeof LoginRoute
+  '/me': typeof MeRoute
   '/signup': typeof SignupRoute
   '/upload': typeof UploadRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/discover' | '/feed' | '/login' | '/signup' | '/upload'
+  fullPaths:
+    | '/'
+    | '/discover'
+    | '/feed'
+    | '/login'
+    | '/me'
+    | '/signup'
+    | '/upload'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/discover' | '/feed' | '/login' | '/signup' | '/upload'
+  to: '/' | '/discover' | '/feed' | '/login' | '/me' | '/signup' | '/upload'
   id:
     | '__root__'
     | '/'
     | '/discover'
     | '/feed'
     | '/login'
+    | '/me'
     | '/signup'
     | '/upload'
   fileRoutesById: FileRoutesById
@@ -92,6 +109,7 @@ export interface RootRouteChildren {
   DiscoverRoute: typeof DiscoverRoute
   FeedRoute: typeof FeedRoute
   LoginRoute: typeof LoginRoute
+  MeRoute: typeof MeRoute
   SignupRoute: typeof SignupRoute
   UploadRoute: typeof UploadRoute
 }
@@ -110,6 +128,13 @@ declare module '@tanstack/react-router' {
       path: '/signup'
       fullPath: '/signup'
       preLoaderRoute: typeof SignupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/me': {
+      id: '/me'
+      path: '/me'
+      fullPath: '/me'
+      preLoaderRoute: typeof MeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -148,6 +173,7 @@ const rootRouteChildren: RootRouteChildren = {
   DiscoverRoute: DiscoverRoute,
   FeedRoute: FeedRoute,
   LoginRoute: LoginRoute,
+  MeRoute: MeRoute,
   SignupRoute: SignupRoute,
   UploadRoute: UploadRoute,
 }
