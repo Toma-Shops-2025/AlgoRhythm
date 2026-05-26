@@ -5,8 +5,11 @@ import { useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { useAuth, signOut } from "@/lib/auth";
 import { getMyProfile, updateMyProfile } from "@/lib/posts.functions";
+import { createPortalSession } from "@/lib/payments.functions";
+import { getStripeEnvironment } from "@/lib/stripe";
+import { useProSubscription } from "@/hooks/useSubscription";
 import { supabase } from "@/integrations/supabase/client";
-import { LogOut, Settings, Plus } from "lucide-react";
+import { LogOut, Settings, Plus, Crown } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/me")({
@@ -31,6 +34,8 @@ function MePage() {
   const qc = useQueryClient();
   const fetchMe = useServerFn(getMyProfile);
   const update = useServerFn(updateMyProfile);
+  const portalFn = useServerFn(createPortalSession);
+  const { isPro } = useProSubscription();
   const [editing, setEditing] = useState(false);
   const [displayName, setDisplayName] = useState("");
   const [bio, setBio] = useState("");
@@ -71,6 +76,14 @@ function MePage() {
     finally { setBusy(false); }
   };
 
+  const manage = async () => {
+    const res = await portalFn({
+      data: { environment: getStripeEnvironment(), returnUrl: window.location.href },
+    });
+    if ("error" in res) return toast.error(res.error);
+    window.open(res.url, "_blank");
+  };
+
   if (!data?.profile) return <AppShell><div className="grid h-dvh place-items-center text-sm text-muted-foreground">Loading…</div></AppShell>;
   const p = data.profile;
 
@@ -105,6 +118,24 @@ function MePage() {
           <Stat label="Followers" v={p.follower_count} />
           <Stat label="Following" v={p.following_count} />
         </div>
+
+        {isPro ? (
+          <div className="mt-5 flex items-center justify-between rounded-xl border border-gold/40 bg-gold/5 px-4 py-3">
+            <div className="flex items-center gap-2 text-sm">
+              <Crown className="h-4 w-4 text-gold" />
+              <span>AlgoRhythm Pro</span>
+            </div>
+            <button onClick={manage} className="text-xs uppercase tracking-[0.18em] text-gold">
+              Manage
+            </button>
+          </div>
+        ) : (
+          <Link to="/pricing"
+            className="mt-5 flex items-center justify-between rounded-xl border border-border px-4 py-3 text-sm">
+            <span className="flex items-center gap-2"><Crown className="h-4 w-4 text-gold" /> Go Pro</span>
+            <span className="text-xs text-muted-foreground">From $4.99/mo →</span>
+          </Link>
+        )}
 
         {editing ? (
           <div className="mt-5 space-y-2">
