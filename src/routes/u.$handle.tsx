@@ -1,10 +1,17 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 import { AppShell } from "@/components/AppShell";
+import { TipDialog } from "@/components/TipDialog";
+import { CheckoutDialog } from "@/components/CheckoutDialog";
 import { getProfileByHandle } from "@/lib/feed.functions";
 import { toggleFollow } from "@/lib/social.functions";
+import { createCreatorSubCheckout } from "@/lib/payments.functions";
+import { getStripeEnvironment } from "@/lib/stripe";
+import { useCreatorSubscription } from "@/hooks/useSubscription";
 import { useAuth } from "@/lib/auth";
+import { Gift, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/u/$handle")({
@@ -39,13 +46,17 @@ function ProfilePage() {
   const { handle } = Route.useParams();
   const fetch = useServerFn(getProfileByHandle);
   const follow = useServerFn(toggleFollow);
+  const subFn = useServerFn(createCreatorSubCheckout);
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [tipOpen, setTipOpen] = useState(false);
+  const [subOpen, setSubOpen] = useState(false);
 
   const { data, refetch } = useQuery({
     queryKey: ["profile", handle],
     queryFn: () => fetch({ data: { handle } }),
   });
+  const { isSubscribed } = useCreatorSubscription(data?.profile?.id);
 
   const onFollow = async () => {
     if (!user) return navigate({ to: "/login" });
@@ -54,10 +65,23 @@ function ProfilePage() {
     catch (e) { toast.error((e as Error).message); }
   };
 
+  const fetchSubSecret = subOpen && data?.profile ? async () => {
+    const res = await subFn({
+      data: {
+        creatorId: data.profile!.id,
+        environment: getStripeEnvironment(),
+        returnUrl: `${window.location.origin}/checkout/return?session_id={CHECKOUT_SESSION_ID}`,
+      },
+    });
+    if ("error" in res) throw new Error(res.error);
+    return res.clientSecret;
+  } : null;
+
   if (!data) return <AppShell><div className="grid h-dvh place-items-center text-sm text-muted-foreground">Loading…</div></AppShell>;
   if (!data.profile) return <AppShell><div className="grid h-dvh place-items-center text-sm text-muted-foreground">Profile not found.</div></AppShell>;
 
   const p = data.profile;
+  const isOwner = user?.id === p.id;
   return (
     <AppShell>
       <div className="px-5 pt-6">
@@ -73,7 +97,7 @@ function ProfilePage() {
             <h1 className="text-lg font-medium">{p.display_name}</h1>
             <div className="text-sm text-gold">@{p.handle}</div>
           </div>
-          {user?.id !== p.id && (
+          {!isOwner && (
             <button onClick={onFollow} className="rounded-full bg-gradient-gold px-4 py-2 text-xs uppercase tracking-[0.18em] text-primary-foreground">
               Follow
             </button>
@@ -85,6 +109,25 @@ function ProfilePage() {
           <Stat label="Following" v={p.following_count} />
         </div>
         {p.bio && <p className="mt-3 text-sm text-foreground/90">{p.bio}</p>}
+
+        {!isOwner && (
+          <div className="mt-5 grid grid-cols-2 gap-2">
+            <button
+              onClick={() => { if (!user) return navigate({ to: "/login" }); setSubOpen(true); }}
+              disabled={isSubscribed}
+              className="flex items-center justify-center gap-2 rounded-full bg-gradient-gold px-4 py-2.5 text-xs uppercase tracking-[0.16em] text-primary-foreground disabled:opacity-60"
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              {isSubscribed ? "Subscribed" : "Subscribe $4.99/mo"}
+            </button>
+            <button
+              onClick={() => { if (!user) return navigate({ to: "/login" }); setTipOpen(true); }}
+              className="flex items-center justify-center gap-2 rounded-full border border-gold/50 px-4 py-2.5 text-xs uppercase tracking-[0.16em] text-gold"
+            >
+              <Gift className="h-3.5 w-3.5" /> Send a tip
+            </button>
+          </div>
+        )}
 
         <div className="mt-6 grid grid-cols-3 gap-1.5 pb-12">
           {data.posts.map((post) => (
@@ -104,6 +147,18 @@ function ProfilePage() {
           )}
         </div>
       </div>
+      <TipDialog
+        open={tipOpen}
+        onOpenChange={setTipOpen}
+        creatorId={p.id}
+        creatorName={p.display_name}
+      />
+      <CheckoutDialog
+        open={subOpen}
+        onOpenChange={setSubOpen}
+        title={`Subscribe to ${p.display_name}`}
+        fetchClientSecret={fetchSubSecret}
+      />
     </AppShell>
   );
 }
