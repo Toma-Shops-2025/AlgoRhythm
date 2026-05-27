@@ -39,7 +39,7 @@ function Index() {
       </header>
 
       <section className="px-6 pt-16 pb-10 text-center">
-        <div className="mx-auto mb-6 inline-flex items-center gap-2 rounded-full border border-gold/30 bg-card/80 px-3 py-1 text-[11px] uppercase tracking-[0.22em] text-gold">
+        <div className="mx-auto mb-6 inline-flex items-center gap-2 rounded-full border border-gold/30 bg-card/85 px-3 py-1 text-[11px] uppercase tracking-[0.22em] text-gold">
           <Sparkles className="h-3 w-3" /> AI music, made viral
         </div>
         <h1 className="text-gradient-gold text-5xl leading-[1.05] tracking-tight">
@@ -75,7 +75,7 @@ function Index() {
         ].map((f) => (
           <article
             key={f.k}
-            className="rounded-xl border border-border/70 bg-card/80 p-5"
+            className="rounded-xl border border-border/70 bg-card/85 p-5"
           >
             <div className="text-[11px] tracking-[0.2em] text-gold">{f.k}</div>
             <h2 className="mt-2 text-lg">{f.t}</h2>
