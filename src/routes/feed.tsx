@@ -41,8 +41,8 @@ function FeedPage() {
   const containerRef = useRef<HTMLDivElement>(null);
 
   const { data, isLoading } = useQuery({
-    queryKey: ["feed"],
-    queryFn: () => fetchFeed({ data: {} }),
+    queryKey: ["feed", user?.id ?? null],
+    queryFn: () => fetchFeed({ data: { viewerId: user?.id ?? null } }),
   });
 
   const basePosts: FeedPost[] = useMemo(

@@ -1,6 +1,20 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { supabaseAdmin } from "@/integrations/supabase/client.server";
+
+// Bots love unverified accounts. Require a confirmed email before any user
+// can post or comment. We check the auth.users row via the service-role client
+// because the JWT does not include `email_confirmed_at`.
+export async function requireVerifiedEmail(userId: string) {
+  const { data, error } = await supabaseAdmin.auth.admin.getUserById(userId);
+  if (error) throw new Error(error.message);
+  if (!data.user?.email_confirmed_at) {
+    throw new Error(
+      "Please verify your email before posting. Check your inbox for a confirmation link.",
+    );
+  }
+}
 
 const STORAGE_BASE = `${process.env.SUPABASE_URL ?? ""}/storage/v1/object/public/`;
 const isBucketUrl = (bucket: string) => (u: string) =>
@@ -41,6 +55,7 @@ export const createPost = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    await requireVerifiedEmail(userId);
     // SEO safety net: ensure every post ships with a usable description for
     // social cards & search snippets even if the creator left the caption blank.
     let description = data.description?.trim() || null;

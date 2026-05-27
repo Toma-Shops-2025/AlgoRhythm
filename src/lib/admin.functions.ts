@@ -248,3 +248,52 @@ export const listTransactions = createServerFn({ method: "GET" })
     ]);
     return { tips: tips.data ?? [], subs: subs.data ?? [] };
   });
+
+// ----- Reports moderation -----
+export const listReports = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d: { status?: "pending" | "resolved" | "dismissed" }) => d)
+  .handler(async ({ context, data }) => {
+    await assertAdmin(context.userId);
+    const status = data.status ?? "pending";
+    const { data: reports, error } = await supabaseAdmin
+      .from("reports")
+      .select(
+        "id, reporter_id, target_type, target_id, reason, details, status, created_at, resolved_at, resolved_by",
+      )
+      .eq("status", status)
+      .order("created_at", { ascending: false })
+      .limit(200);
+    if (error) throw new Error(error.message);
+    const reporterIds = [...new Set((reports ?? []).map((r) => r.reporter_id))];
+    const { data: reporters } = reporterIds.length
+      ? await supabaseAdmin
+          .from("profiles")
+          .select("id, handle, display_name")
+          .in("id", reporterIds)
+      : { data: [] as { id: string; handle: string; display_name: string }[] };
+    const byId = new Map(reporters?.map((p) => [p.id, p]));
+    return (reports ?? []).map((r) => ({ ...r, reporter: byId.get(r.reporter_id) ?? null }));
+  });
+
+export const resolveReport = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((d) =>
+    z.object({
+      reportId: z.string().uuid(),
+      action: z.enum(["dismiss", "resolve"]),
+    }).parse(d),
+  )
+  .handler(async ({ context, data }) => {
+    await assertAdmin(context.userId);
+    const { error } = await supabaseAdmin
+      .from("reports")
+      .update({
+        status: data.action === "dismiss" ? "dismissed" : "resolved",
+        resolved_at: new Date().toISOString(),
+        resolved_by: context.userId,
+      })
+      .eq("id", data.reportId);
+    if (error) throw new Error(error.message);
+    return { ok: true };
+  });
