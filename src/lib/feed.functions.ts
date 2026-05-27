@@ -81,7 +81,7 @@ export const getProfileByHandle = createServerFn({ method: "GET" })
   .handler(async ({ data }) => {
     const { data: profile } = await supabaseAdmin
       .from("profiles")
-      .select("*")
+      .select("id, handle, display_name, avatar_url, bio, links, follower_count, following_count, post_count, created_at")
       .eq("handle", data.handle)
       .maybeSingle();
     if (!profile) return { profile: null, posts: [] };
