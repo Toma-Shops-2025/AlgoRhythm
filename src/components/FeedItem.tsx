@@ -6,6 +6,12 @@ import { Watermark } from "./Logo";
 import { TipDialog } from "./TipDialog";
 import { ReportDialog } from "./ReportDialog";
 import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
+import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
@@ -69,6 +75,7 @@ export function FeedItem({
   const [tipOpen, setTipOpen] = useState(false);
   const [reportPostOpen, setReportPostOpen] = useState(false);
   const [reportUserOpen, setReportUserOpen] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
   const { user } = useAuth();
   const navigate = useNavigate();
   const track = useServerFn(recordPlayback);
@@ -147,20 +154,32 @@ export function FeedItem({
     if (el.paused) { el.play(); setPlaying(true); } else { el.pause(); setPlaying(false); }
   };
 
-  const share = async () => {
-    const url = `${window.location.origin}/p/${post.id}`;
-    const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
-    try {
-      if (isMobile && navigator.share) {
-        await navigator.share({ title: post.title, url });
+  const shareUrl =
+    typeof window !== "undefined" ? `${window.location.origin}/p/${post.id}` : `/p/${post.id}`;
+  const creatorHandle = post.creator?.handle ?? "creator";
+  const baseTags = (post.tags ?? []).slice(0, 3).map((t) => `#${t.replace(/\s+/g, "")}`).join(" ");
+  const caption = `${post.title} — by @${creatorHandle} on AlgoRhythm 🎧\n${shareUrl}\n${baseTags} #AlgoRhythm #AIMusic`.trim();
+
+  const openShare = async () => {
+    const isMobile =
+      typeof navigator !== "undefined" && /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
+    if (isMobile && typeof navigator !== "undefined" && navigator.share) {
+      try {
+        await navigator.share({ title: post.title, text: caption, url: shareUrl });
         return;
+      } catch {
+        /* user dismissed — fall through to sheet */
       }
-    } catch { /* user dismissed native share — fall through to copy */ }
+    }
+    setShareOpen(true);
+  };
+
+  const copy = async (text: string, label: string) => {
     try {
-      await navigator.clipboard.writeText(url);
-      toast.success("Link copied");
+      await navigator.clipboard.writeText(text);
+      toast.success(`${label} copied`);
     } catch {
-      toast.error("Couldn't copy link");
+      toast.error("Couldn't copy");
     }
   };
 
@@ -241,7 +260,7 @@ export function FeedItem({
             <Gift className="h-7 w-7 text-gold" />
           </ActionButton>
         )}
-        <ActionButton onClick={share} ariaLabel="Share post">
+        <ActionButton onClick={openShare} ariaLabel="Share post">
           <Share2 className="h-7 w-7" />
         </ActionButton>
         {user && post.creator && user.id !== post.creator.id && (
@@ -334,6 +353,59 @@ export function FeedItem({
           targetId={post.creator.id}
         />
       )}
+      <Sheet open={shareOpen} onOpenChange={setShareOpen}>
+        <SheetContent side="bottom" className="rounded-t-2xl border-border bg-card">
+          <SheetHeader>
+            <SheetTitle className="text-left text-base">Share this track</SheetTitle>
+          </SheetHeader>
+          <div className="mt-4 space-y-2">
+            <ShareRow
+              label="Copy link"
+              sub={shareUrl}
+              onClick={() => copy(shareUrl, "Link")}
+            />
+            <ShareRow
+              label="Copy caption for TikTok / Reels / Shorts"
+              sub="Pre-formatted with title, @creator, link, and tags"
+              onClick={() => copy(caption, "Caption")}
+            />
+            <a
+              href={`https://twitter.com/intent/tweet?text=${encodeURIComponent(caption)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block rounded-lg border border-border bg-background/50 p-3 text-sm hover:border-gold/40"
+              onClick={() => setShareOpen(false)}
+            >
+              <div className="font-medium">Share to X / Twitter</div>
+              <div className="text-xs text-muted-foreground">Opens the composer pre-filled</div>
+            </a>
+            <a
+              href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block rounded-lg border border-border bg-background/50 p-3 text-sm hover:border-gold/40"
+              onClick={() => setShareOpen(false)}
+            >
+              <div className="font-medium">Share to Facebook</div>
+              <div className="text-xs text-muted-foreground">Opens the share dialog</div>
+            </a>
+            <a
+              href={`https://wa.me/?text=${encodeURIComponent(`${post.title} — ${shareUrl}`)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="block rounded-lg border border-border bg-background/50 p-3 text-sm hover:border-gold/40"
+              onClick={() => setShareOpen(false)}
+            >
+              <div className="font-medium">Send via WhatsApp</div>
+              <div className="text-xs text-muted-foreground">Opens WhatsApp with the link</div>
+            </a>
+          </div>
+          <p className="mt-4 text-[11px] leading-relaxed text-muted-foreground">
+            Tip: the AlgoRhythm watermark on the visualizer travels with every screen-recording, so
+            shares always point friends back to the original.
+          </p>
+        </SheetContent>
+      </Sheet>
     </section>
   );
 }
