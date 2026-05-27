@@ -10,12 +10,15 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as UploadRouteImport } from './routes/upload'
+import { Route as TermsRouteImport } from './routes/terms'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as SignupRouteImport } from './routes/signup'
+import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as PricingRouteImport } from './routes/pricing'
 import { Route as MeRouteImport } from './routes/me'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as FeedRouteImport } from './routes/feed'
+import { Route as DmcaRouteImport } from './routes/dmca'
 import { Route as DiscoverRouteImport } from './routes/discover'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as UHandleRouteImport } from './routes/u.$handle'
@@ -29,6 +32,11 @@ const UploadRoute = UploadRouteImport.update({
   path: '/upload',
   getParentRoute: () => rootRouteImport,
 } as any)
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
   path: '/sitemap.xml',
@@ -37,6 +45,11 @@ const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
   path: '/signup',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
   getParentRoute: () => rootRouteImport,
 } as any)
 const PricingRoute = PricingRouteImport.update({
@@ -57,6 +70,11 @@ const LoginRoute = LoginRouteImport.update({
 const FeedRoute = FeedRouteImport.update({
   id: '/feed',
   path: '/feed',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DmcaRoute = DmcaRouteImport.update({
+  id: '/dmca',
+  path: '/dmca',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DiscoverRoute = DiscoverRouteImport.update({
@@ -99,12 +117,15 @@ const ApiPublicPaymentsWebhookRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/discover': typeof DiscoverRoute
+  '/dmca': typeof DmcaRoute
   '/feed': typeof FeedRoute
   '/login': typeof LoginRoute
   '/me': typeof MeRoute
   '/pricing': typeof PricingRoute
+  '/privacy': typeof PrivacyRoute
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/terms': typeof TermsRoute
   '/upload': typeof UploadRoute
   '/api/transcribe-lyrics': typeof ApiTranscribeLyricsRoute
   '/checkout/return': typeof CheckoutReturnRoute
@@ -115,12 +136,15 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/discover': typeof DiscoverRoute
+  '/dmca': typeof DmcaRoute
   '/feed': typeof FeedRoute
   '/login': typeof LoginRoute
   '/me': typeof MeRoute
   '/pricing': typeof PricingRoute
+  '/privacy': typeof PrivacyRoute
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/terms': typeof TermsRoute
   '/upload': typeof UploadRoute
   '/api/transcribe-lyrics': typeof ApiTranscribeLyricsRoute
   '/checkout/return': typeof CheckoutReturnRoute
@@ -132,12 +156,15 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/discover': typeof DiscoverRoute
+  '/dmca': typeof DmcaRoute
   '/feed': typeof FeedRoute
   '/login': typeof LoginRoute
   '/me': typeof MeRoute
   '/pricing': typeof PricingRoute
+  '/privacy': typeof PrivacyRoute
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/terms': typeof TermsRoute
   '/upload': typeof UploadRoute
   '/api/transcribe-lyrics': typeof ApiTranscribeLyricsRoute
   '/checkout/return': typeof CheckoutReturnRoute
@@ -150,12 +177,15 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/discover'
+    | '/dmca'
     | '/feed'
     | '/login'
     | '/me'
     | '/pricing'
+    | '/privacy'
     | '/signup'
     | '/sitemap.xml'
+    | '/terms'
     | '/upload'
     | '/api/transcribe-lyrics'
     | '/checkout/return'
@@ -166,12 +196,15 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/discover'
+    | '/dmca'
     | '/feed'
     | '/login'
     | '/me'
     | '/pricing'
+    | '/privacy'
     | '/signup'
     | '/sitemap.xml'
+    | '/terms'
     | '/upload'
     | '/api/transcribe-lyrics'
     | '/checkout/return'
@@ -182,12 +215,15 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/discover'
+    | '/dmca'
     | '/feed'
     | '/login'
     | '/me'
     | '/pricing'
+    | '/privacy'
     | '/signup'
     | '/sitemap.xml'
+    | '/terms'
     | '/upload'
     | '/api/transcribe-lyrics'
     | '/checkout/return'
@@ -199,12 +235,15 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DiscoverRoute: typeof DiscoverRoute
+  DmcaRoute: typeof DmcaRoute
   FeedRoute: typeof FeedRoute
   LoginRoute: typeof LoginRoute
   MeRoute: typeof MeRoute
   PricingRoute: typeof PricingRoute
+  PrivacyRoute: typeof PrivacyRoute
   SignupRoute: typeof SignupRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  TermsRoute: typeof TermsRoute
   UploadRoute: typeof UploadRoute
   ApiTranscribeLyricsRoute: typeof ApiTranscribeLyricsRoute
   CheckoutReturnRoute: typeof CheckoutReturnRoute
@@ -222,6 +261,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof UploadRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/sitemap.xml': {
       id: '/sitemap.xml'
       path: '/sitemap.xml'
@@ -234,6 +280,13 @@ declare module '@tanstack/react-router' {
       path: '/signup'
       fullPath: '/signup'
       preLoaderRoute: typeof SignupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/pricing': {
@@ -262,6 +315,13 @@ declare module '@tanstack/react-router' {
       path: '/feed'
       fullPath: '/feed'
       preLoaderRoute: typeof FeedRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dmca': {
+      id: '/dmca'
+      path: '/dmca'
+      fullPath: '/dmca'
+      preLoaderRoute: typeof DmcaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/discover': {
@@ -319,12 +379,15 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DiscoverRoute: DiscoverRoute,
+  DmcaRoute: DmcaRoute,
   FeedRoute: FeedRoute,
   LoginRoute: LoginRoute,
   MeRoute: MeRoute,
   PricingRoute: PricingRoute,
+  PrivacyRoute: PrivacyRoute,
   SignupRoute: SignupRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
+  TermsRoute: TermsRoute,
   UploadRoute: UploadRoute,
   ApiTranscribeLyricsRoute: ApiTranscribeLyricsRoute,
   CheckoutReturnRoute: CheckoutReturnRoute,
