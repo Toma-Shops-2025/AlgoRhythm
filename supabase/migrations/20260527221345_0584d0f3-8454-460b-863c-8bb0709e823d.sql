@@ -1,0 +1,1 @@
+REVOKE EXECUTE ON FUNCTION public.saves_count_trg() FROM PUBLIC, anon, authenticated;
