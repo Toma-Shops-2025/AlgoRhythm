@@ -16,6 +16,8 @@ import {
   listComments,
   adminDeleteComment,
   listTransactions,
+  listReports,
+  resolveReport,
 } from "@/lib/admin.functions";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
@@ -44,6 +46,9 @@ import {
   Crown,
   Loader2,
   ExternalLink,
+  Flag,
+  Check,
+  X,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -113,8 +118,9 @@ function AdminPage() {
         </header>
 
         <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="overview">Overview</TabsTrigger>
+            <TabsTrigger value="reports">Reports</TabsTrigger>
             <TabsTrigger value="users">Users</TabsTrigger>
             <TabsTrigger value="posts">Posts</TabsTrigger>
             <TabsTrigger value="comments">Comments</TabsTrigger>
@@ -123,6 +129,9 @@ function AdminPage() {
 
           <TabsContent value="overview" className="mt-6">
             <OverviewTab />
+          </TabsContent>
+          <TabsContent value="reports" className="mt-6">
+            <ReportsTab />
           </TabsContent>
           <TabsContent value="users" className="mt-6">
             <UsersTab currentUserId={user!.id} />
