@@ -1,55 +1,36 @@
-Right now `/p/$id` (post pages) and `/u/$handle` (creator profiles) ship hardcoded placeholder meta — the title is literally `AlgoRhythm — track abc12345`, the description is generic, and `og:image` is missing. Google and social platforms see the same boilerplate for every creator. This plan makes each page self-describe with the creator's actual title, caption, cover, tags, and handle.
+# Security Fixes
 
-### 1. Post pages (`src/routes/p.$id.tsx`) — dynamic, rich meta
+Fix the three real warnings from the security scan. Skip the informational/false-positive ones.
 
-- Move the post fetch into a route `loader` using `context.queryClient.ensureQueryData` so `head()` gets real `loaderData` (and the component keeps using `useSuspenseQuery` — no double fetch).
-- Replace the placeholder meta with values derived from the post:
-  - `title`: `"{post.title} — @{handle} on AlgoRhythm"` (trimmed to ~60 chars)
-  - `description`: caption (post.description), trimmed to ~155 chars, fallback to `"AI-made {audio|video} by @{handle} on AlgoRhythm. {tags as #hashtags}"`
-  - `og:title`, `og:description`, `twitter:title`, `twitter:description` mirror the above
-  - `og:image` + `twitter:image` = `cover_url` (absolute URL) — only when present (no placeholder)
-  - `twitter:card` = `summary_large_image` when cover exists, else `summary`
-  - `og:type` = `"music.song"` for audio, `"video.other"` for video
-  - `og:audio` / `og:video` pointing at `media_url`, with `og:audio:type` / `og:video:type`
-  - `article:author`, `music:musician`, `og:url`, keyword meta from tags + aiTools
-- JSON-LD upgraded from a stub to a real `MusicRecording` (audio) or `VideoObject` (video) populated with `name`, `description`, `thumbnailUrl`, `contentUrl`, `uploadDate`, `duration`, `genre` (tags), `creator` (Person with name/url), `interactionStatistic` (likes/comments/views). Add a `BreadcrumbList` (Home → @handle → title).
-- Keep canonical on the leaf only.
+## 1. Lock down `/api/transcribe-lyrics`
 
-### 2. Profile pages (`src/routes/u.$handle.tsx`) — dynamic, rich meta
+Right now anyone on the internet can POST a 20 MB audio file and burn the Lovable AI quota.
 
-- Same loader pattern: fetch the profile in the route loader so `head()` has real data.
-- Meta derived from profile:
-  - `title`: `"{display_name} (@{handle}) — AI music on AlgoRhythm"`
-  - `description`: bio (trimmed) or fallback `"AI-made music & videos by {display_name} (@{handle}). {post_count} posts."`
-  - `og:image` + `twitter:image` = `avatar_url` when present
-  - `twitter:card`, `og:type=profile`, `profile:username`
-- JSON-LD upgraded to `ProfilePage` + `Person` with `image`, `description`, and `sameAs` array built from `profile.links` (when populated).
+- In `src/routes/api/transcribe-lyrics.ts`, validate an `Authorization: Bearer <token>` header at the top of the POST handler using `supabase.auth.getClaims(token)` (same pattern as `auth-middleware.ts`). Return 401 if missing/invalid.
+- In `src/routes/upload.tsx`, attach the user's access token to the `fetch('/api/transcribe-lyrics', ...)` call via `supabase.auth.getSession()`.
 
-### 3. Canonical domain alignment
+## 2. Stop leaking `birth_year` and `terms_accepted_at` from `profiles`
 
-- All canonical/`og:url` strings (post, profile, upload, sitemap) currently use `myalgorhythm.lovable.app`. The project's primary domain is `myalgorhythm.online`. Switch `BASE_URL` to `https://myalgorhythm.online` in:
-  - `src/routes/sitemap[.]xml.ts`
-  - `src/routes/p.$id.tsx`
-  - `src/routes/u.$handle.tsx`
-  - any other route head that hardcodes `lovable.app` (`feed.tsx`, `upload.tsx`, `discover.tsx`, etc.)
-- Centralize the base URL in `src/lib/seo.ts` so future routes import one constant.
+The `profiles` table is publicly readable (needed for handles/avatars), but `birth_year` and `terms_accepted_at` shouldn't be.
 
-### 4. Helpful publish-time defaults (small backend tweak, optional but in-scope for "always SEO-optimize")
+Migration:
+- Drop the existing public `SELECT` policy on `profiles`.
+- Recreate it so `anon` and other users can only read non-sensitive columns. Cleanest approach: keep public SELECT but add a `SECURITY INVOKER` view `public.profiles_public` exposing only safe columns, and switch any anon/public-facing reads to it. Simpler alternative (chosen): keep the existing table policy but **revoke `birth_year` and `terms_accepted_at` column-level SELECT from `anon`**, and add a separate policy so owners can still read their own row in full. Postgres supports column-level GRANTs which PostgREST honors.
+- Then audit `src/lib/*.functions.ts` for any `profiles` select using `*` that would now silently drop those columns for non-owners (should be fine — UI doesn't display them publicly).
 
-- In `createPost` (`src/lib/posts.functions.ts`), if `description` is empty after the creator publishes, store a derived fallback (`"AI-made {type} '{title}' by @{handle}. #tag #tag …"`) so the rendered meta is never blank even when a creator skips the caption. This is a server-side safety net on top of the existing "Generate title/caption/hashtags" button.
+## 3. Add admin SELECT policy on `processed_stripe_events`
 
-### 5. Share button copy
+Migration: add `CREATE POLICY "admins read processed stripe events" ON public.processed_stripe_events FOR SELECT TO authenticated USING (has_role(auth.uid(), 'admin'));`. Webhook writes already use `supabaseAdmin` so this is purely additive.
 
-- `share()` in `p.$id.tsx` currently shares only `title`. Include the caption as `text` so native share sheets pre-fill richer content.
+## Skipped (not real issues)
 
-### Out of scope (call out only)
+- **Blocked users can detect they're blocked** — scanner itself says the policy is correct.
+- **Signed-in users can execute SECURITY DEFINER functions** — `has_role`, `handle_new_user`, `gen_unique_handle` are intentionally callable; this is the standard Supabase pattern.
+- **RLS enabled, no policy (info)** — resolved by fix #3.
 
-- No URL-slug change (post URLs stay `/p/{uuid}`). Adding a `/p/{id}/{slug}` redirect would help, but it's a routing change I'd want explicit approval for.
-- No new image generation for `og:image` — we use the existing cover. The earlier "generate cover with AI" flow already covers creators who don't upload one.
+## Order of operations
 
-### Technical notes
-
-- Loader pattern follows the canonical TanStack Query integration: `loader: ({ context, params }) => context.queryClient.ensureQueryData(postQueryOptions(params.id))`; `head({ loaderData })` reads the same object. The component calls `useSuspenseQuery(postQueryOptions(id))` — cache-hit, no extra request.
-- `og:image` and `twitter:image` must be absolute URLs; Supabase Storage public URLs already are, so pass them straight through.
-- Trim helpers cap title at 60 and description at 155 chars to stay within Google/Twitter limits.
-- Strict TanStack rule: `og:image` on leaf routes only — never `__root.tsx`.
+1. Migration: column-level GRANT revoke on `profiles` + owner-read policy + admin policy on `processed_stripe_events`.
+2. Edit `src/routes/api/transcribe-lyrics.ts` (add auth check).
+3. Edit `src/routes/upload.tsx` (send bearer token).
+4. Re-run the security scan to confirm.

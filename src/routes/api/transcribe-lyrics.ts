@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { createClient } from "@supabase/supabase-js";
 
 const GATEWAY = "https://ai.gateway.lovable.dev/v1";
 
@@ -42,6 +43,24 @@ export const Route = createFileRoute("/api/transcribe-lyrics")({
         const apiKey = process.env.LOVABLE_API_KEY;
         if (!apiKey) {
           return new Response(JSON.stringify({ error: "LOVABLE_API_KEY missing" }), { status: 500 });
+        }
+        // Require an authenticated user — this endpoint calls the paid AI gateway.
+        const authHeader = request.headers.get("authorization");
+        if (!authHeader?.startsWith("Bearer ")) {
+          return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
+        }
+        const token = authHeader.slice("Bearer ".length);
+        const SUPABASE_URL = process.env.SUPABASE_URL;
+        const SUPABASE_PUBLISHABLE_KEY = process.env.SUPABASE_PUBLISHABLE_KEY;
+        if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
+          return new Response(JSON.stringify({ error: "Auth not configured" }), { status: 500 });
+        }
+        const sb = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+          auth: { persistSession: false, autoRefreshToken: false, storage: undefined },
+        });
+        const { data: claims, error: claimsErr } = await sb.auth.getClaims(token);
+        if (claimsErr || !claims?.claims?.sub) {
+          return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
         }
         const form = await request.formData();
         const file = form.get("audio");
