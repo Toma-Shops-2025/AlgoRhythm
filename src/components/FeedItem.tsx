@@ -1,10 +1,16 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { Heart, MessageCircle, Share2, Play, Volume2, VolumeX, Gift, Flag } from "lucide-react";
+import { Heart, MessageCircle, Share2, Play, Volume2, VolumeX, Gift, MoreVertical } from "lucide-react";
 import { AudioVisualizer } from "./AudioVisualizer";
 import { Watermark } from "./Logo";
 import { TipDialog } from "./TipDialog";
 import { ReportDialog } from "./ReportDialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/lib/auth";
 import { useNavigate } from "@tanstack/react-router";
 import { cn } from "@/lib/utils";
@@ -54,7 +60,8 @@ export function FeedItem({
   const audioRef = useRef<HTMLAudioElement>(null);
   const [playing, setPlaying] = useState(false);
   const [tipOpen, setTipOpen] = useState(false);
-  const [reportOpen, setReportOpen] = useState(false);
+  const [reportPostOpen, setReportPostOpen] = useState(false);
+  const [reportUserOpen, setReportUserOpen] = useState(false);
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -152,18 +159,46 @@ export function FeedItem({
           <Share2 className="h-7 w-7" />
         </ActionButton>
         {user && post.creator && user.id !== post.creator.id && (
-          <ActionButton
-            ariaLabel="Report post"
-            onClick={() => setReportOpen(true)}
-          >
-            <Flag className="h-6 w-6" />
-          </ActionButton>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                aria-label="More options"
+                onClick={(e) => e.stopPropagation()}
+                className="flex flex-col items-center gap-1"
+              >
+                <span className="grid h-12 w-12 place-items-center rounded-full bg-black/35 backdrop-blur">
+                  <MoreVertical className="h-6 w-6" />
+                </span>
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="end"
+              side="left"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <DropdownMenuItem onSelect={() => setReportUserOpen(true)}>
+                Report creator
+              </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => setReportPostOpen(true)}>
+                Report post
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="text-rose-400 focus:text-rose-400"
+                onSelect={() =>
+                  post.creator &&
+                  navigate({ to: "/u/$handle", params: { handle: post.creator.handle } })
+                }
+              >
+                Block creator
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         )}
       </div>
 
       {/* bottom meta */}
-      <div className="absolute inset-x-0 bottom-24 z-20 px-5 pb-2 text-white">
-        <div className="flex items-center gap-3">
+      <div className="absolute inset-x-0 bottom-24 z-20 px-5 pb-2 pr-24 text-white">
+        <div className="flex items-center gap-3 flex-wrap">
           {post.creator && (
             <Link to="/u/$handle" params={{ handle: post.creator.handle }} className="flex items-center gap-2">
               <Avatar url={post.creator.avatar_url} name={post.creator.display_name} />
@@ -175,7 +210,7 @@ export function FeedItem({
           )}
           {!following && post.creator && (
             <button onClick={(e) => { e.stopPropagation(); onFollow(); }}
-              className="ml-auto rounded-full border border-gold/60 px-3 py-1 text-[11px] uppercase tracking-[0.15em] text-gold">
+              className="rounded-full border border-gold/60 px-3 py-1 text-[11px] uppercase tracking-[0.15em] text-gold">
               Follow
             </button>
           )}
@@ -200,11 +235,19 @@ export function FeedItem({
         />
       )}
       <ReportDialog
-        open={reportOpen}
-        onOpenChange={setReportOpen}
+        open={reportPostOpen}
+        onOpenChange={setReportPostOpen}
         targetType="post"
         targetId={post.id}
       />
+      {post.creator && (
+        <ReportDialog
+          open={reportUserOpen}
+          onOpenChange={setReportUserOpen}
+          targetType="user"
+          targetId={post.creator.id}
+        />
+      )}
     </section>
   );
 }
