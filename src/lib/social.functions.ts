@@ -106,7 +106,7 @@ export const getMyInteractions = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const [{ data: likes }, { data: follows }] = await Promise.all([
+    const [{ data: likes }, { data: follows }, { data: saves }] = await Promise.all([
       data.postIds.length
         ? supabase.from("likes").select("post_id").eq("user_id", userId).in("post_id", data.postIds)
         : Promise.resolve({ data: [] as { post_id: string }[] }),
@@ -117,9 +117,13 @@ export const getMyInteractions = createServerFn({ method: "POST" })
             .eq("follower_id", userId)
             .in("following_id", data.creatorIds)
         : Promise.resolve({ data: [] as { following_id: string }[] }),
+      data.postIds.length
+        ? supabase.from("saves").select("post_id").eq("user_id", userId).in("post_id", data.postIds)
+        : Promise.resolve({ data: [] as { post_id: string }[] }),
     ]);
     return {
       likedPostIds: (likes ?? []).map((l) => l.post_id),
       followingIds: (follows ?? []).map((f) => f.following_id),
+      savedPostIds: (saves ?? []).map((s) => s.post_id),
     };
   });

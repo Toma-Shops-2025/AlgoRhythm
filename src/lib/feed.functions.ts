@@ -30,7 +30,7 @@ export const getFeed = createServerFn({ method: "GET" })
     let q = supabaseAdmin
       .from("posts")
       .select(
-        "id, creator_id, type, media_url, cover_url, title, description, tags, ai_tools, like_count, comment_count, view_count, duration_seconds, created_at",
+        "id, creator_id, type, media_url, cover_url, title, description, tags, ai_tools, like_count, comment_count, view_count, save_count, play_count, complete_count, loop_count, duration_seconds, created_at",
       )
       .eq("is_published", true)
       .order("created_at", { ascending: false })
@@ -49,8 +49,32 @@ export const getFeed = createServerFn({ method: "GET" })
       .in("id", creatorIds.length ? creatorIds : ["00000000-0000-0000-0000-000000000000"]);
     const byId = new Map((creators ?? []).map((c) => [c.id, c]));
 
+    // Retention-weighted ranking with discovery sandbox boost.
+    // Score combines:
+    //   - recency decay (~7-day half-life)
+    //   - audio retention (complete + loop rate per play)
+    //   - high-intent engagement (saves > likes > comments)
+    //   - sandbox boost: new posts (<24h) with <500 views get a multiplier
+    //     so cold-start content has a fair shot in the shuffle.
+    const now = Date.now();
+    const scored = (posts ?? []).map((p) => {
+      const ageHours = (now - new Date(p.created_at).getTime()) / 36e5;
+      const recency = Math.exp(-ageHours / 168); // 7-day decay
+      const plays = Math.max(1, p.play_count ?? 0);
+      const completion = (p.complete_count ?? 0) / plays;
+      const loopRate = (p.loop_count ?? 0) / plays;
+      const retention = completion + loopRate * 0.6;
+      const engagement =
+        (p.save_count ?? 0) * 3 + (p.like_count ?? 0) * 1 + (p.comment_count ?? 0) * 2;
+      const sandbox = ageHours < 24 && (p.view_count ?? 0) < 500 ? 1.8 : 1;
+      const score = (recency * (1 + retention * 2) + Math.log1p(engagement) * 0.4) * sandbox;
+      return { p, score };
+    });
+    scored.sort((a, b) => b.score - a.score);
+    const ranked = scored.map((s) => s.p);
+
     return {
-      items: (posts ?? []).map((p) => ({ ...p, creator: byId.get(p.creator_id) ?? null })),
+      items: ranked.map((p) => ({ ...p, creator: byId.get(p.creator_id) ?? null })),
       nextCursor: posts && posts.length === limit ? posts[posts.length - 1].created_at : null,
     };
   });
