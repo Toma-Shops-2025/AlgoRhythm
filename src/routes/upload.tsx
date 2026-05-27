@@ -4,11 +4,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { useServerFn } from "@tanstack/react-start";
 import { createPost } from "@/lib/posts.functions";
-import { generateCoverImage, generatePostMetadata } from "@/lib/ai.functions";
-import { audioToVideo, b64ToFile } from "@/lib/audioToVideo";
+import { generateCoverImage, generatePostMetadata, generateMusicVideoScenes } from "@/lib/ai.functions";
+import { audioToVideo, audioToLyricVideo, b64ToFile, loadImageFromB64, type LyricLine } from "@/lib/audioToVideo";
 import { AppShell } from "@/components/AppShell";
 import { toast } from "sonner";
-import { Music, Film, Image as ImageIcon, Loader2, Sparkles, Video as VideoIcon } from "lucide-react";
+import { Music, Film, Image as ImageIcon, Loader2, Sparkles, Video as VideoIcon, Type } from "lucide-react";
 
 export const Route = createFileRoute("/upload")({
   head: () => ({
@@ -31,6 +31,7 @@ function UploadPage() {
   const post = useServerFn(createPost);
   const genCover = useServerFn(generateCoverImage);
   const genMeta = useServerFn(generatePostMetadata);
+  const genScenes = useServerFn(generateMusicVideoScenes);
 
   const [media, setMedia] = useState<File | null>(null);
   const [cover, setCover] = useState<File | null>(null);
@@ -45,6 +46,7 @@ function UploadPage() {
   const [busyLabel, setBusyLabel] = useState<string>("");
   const [generating, setGenerating] = useState(false);
   const [convertToVideo, setConvertToVideo] = useState(false);
+  const [videoMode, setVideoMode] = useState<"visualizer" | "lyric">("visualizer");
 
   const coverPreview = useMemo(() => (cover ? URL.createObjectURL(cover) : null), [cover]);
 
@@ -114,7 +116,42 @@ function UploadPage() {
       let derivedCover: File | null = cover;
 
       if (type === "audio" && convertToVideo) {
-        if (cover) {
+        if (videoMode === "lyric") {
+          setBusyLabel("Transcribing lyrics…");
+          const fd = new FormData();
+          fd.append("audio", media);
+          // best-effort duration: rely on server to clamp
+          const lyricsRes = await fetch("/api/transcribe-lyrics", { method: "POST", body: fd });
+          if (!lyricsRes.ok) {
+            const err = await lyricsRes.json().catch(() => ({ error: "Transcription failed" }));
+            throw new Error((err as { error?: string }).error ?? "Transcription failed");
+          }
+          const { lines } = (await lyricsRes.json()) as { lines: LyricLine[] };
+          if (!lines || lines.length === 0) {
+            throw new Error("Could not detect lyrics in the audio. Try the visualizer mode instead.");
+          }
+
+          setBusyLabel("Generating backdrop scenes…");
+          const scenePrompt = [title.trim(), caption.trim(), idea.trim()].filter(Boolean).join(" — ") || "atmospheric music video backdrop";
+          const { images } = await genScenes({ data: { prompt: scenePrompt, count: 4 } });
+          const imgs = await Promise.all(images.map((b) => loadImageFromB64(b)));
+
+          setBusyLabel("Rendering your lyric video…");
+          const blob = await audioToLyricVideo(media, imgs, lines);
+          mediaFile = new File([blob], `${crypto.randomUUID()}.webm`, { type: "video/webm" });
+          postType = "video";
+          if (!derivedCover) {
+            const canvas = document.createElement("canvas");
+            canvas.width = imgs[0].naturalWidth;
+            canvas.height = imgs[0].naturalHeight;
+            const cctx = canvas.getContext("2d");
+            if (cctx) {
+              cctx.drawImage(imgs[0], 0, 0);
+              const dataUrl = canvas.toDataURL("image/png");
+              derivedCover = b64ToFile(dataUrl.split(",")[1], `cover-${Date.now()}.png`, "image/png");
+            }
+          }
+        } else if (cover) {
           setBusyLabel("Rendering your video…");
           const blob = await audioToVideo(media, cover);
           mediaFile = new File([blob], `${crypto.randomUUID()}.webm`, { type: "video/webm" });
@@ -217,12 +254,31 @@ function UploadPage() {
           )}
 
           {type === "audio" && convertToVideo && (
-            <div className="rounded-md border border-gold/20 bg-card/30 p-3">
-              {!cover && (
+            <div className="rounded-md border border-gold/20 bg-card/30 p-3 space-y-2">
+              <div className="grid grid-cols-2 gap-2">
+                <ModeOption
+                  active={videoMode === "visualizer"}
+                  onClick={() => setVideoMode("visualizer")}
+                  icon={VideoIcon}
+                  title="Visualizer"
+                  desc="Cover art + reactive bars"
+                />
+                <ModeOption
+                  active={videoMode === "lyric"}
+                  onClick={() => setVideoMode("lyric")}
+                  icon={Type}
+                  title="Lyric video"
+                  desc="AI lyrics + AI scenes"
+                />
+              </div>
+              {videoMode === "visualizer" && !cover && (
                 <p className="text-[11px] text-muted-foreground">Pick or generate a cover image above to use as the visualizer background.</p>
               )}
-              {cover && (
+              {videoMode === "visualizer" && cover && (
                 <p className="text-[11px] text-muted-foreground">Your cover will animate with a reactive visualizer synced to the audio.</p>
+              )}
+              {videoMode === "lyric" && (
+                <p className="text-[11px] text-muted-foreground">We'll auto-transcribe your vocals, generate cinematic backdrops, and sync the lyrics on-screen. Best with vocal tracks under ~20MB.</p>
               )}
             </div>
           )}
@@ -306,5 +362,23 @@ function FilePick({
       </div>
       <input type="file" accept={accept} className="hidden" onChange={(e) => onChange(e.target.files?.[0] ?? null)} />
     </label>
+  );
+}
+
+function ModeOption({
+  active, onClick, icon: Icon, title, desc,
+}: { active: boolean; onClick: () => void; icon: typeof Music; title: string; desc: string }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`flex flex-col items-start gap-1 rounded-md border p-2.5 text-left transition ${active ? "border-gold/60 bg-card" : "border-border bg-card/40 hover:border-gold/30"}`}
+    >
+      <span className="flex items-center gap-1.5 text-xs">
+        <Icon className={`h-3.5 w-3.5 ${active ? "text-gold" : "text-muted-foreground"}`} />
+        <span className={active ? "text-gold" : ""}>{title}</span>
+      </span>
+      <span className="text-[10px] text-muted-foreground">{desc}</span>
+    </button>
   );
 }
