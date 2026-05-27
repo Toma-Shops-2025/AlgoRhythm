@@ -1,6 +1,6 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useQuery } from "@tanstack/react-query";
+import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { TipDialog } from "@/components/TipDialog";
@@ -13,38 +13,90 @@ import { useCreatorSubscription } from "@/hooks/useSubscription";
 import { useAuth } from "@/lib/auth";
 import { Gift, Sparkles } from "lucide-react";
 import { toast } from "sonner";
+import { SITE_URL, SITE_NAME, buildProfileTitle, buildProfileDescription, absUrl } from "@/lib/seo";
+
+const profileQueryOptions = (handle: string) =>
+  queryOptions({
+    queryKey: ["profile", handle],
+    queryFn: () => getProfileByHandle({ data: { handle } }),
+  });
 
 export const Route = createFileRoute("/u/$handle")({
-  head: ({ params }) => ({
-    meta: [
-      { title: `@${params.handle} — AlgoRhythm` },
-      { name: "description", content: `AI-made music and videos by @${params.handle} on AlgoRhythm.` },
-      { property: "og:title", content: `@${params.handle} on AlgoRhythm` },
-      { property: "og:description", content: `AI music and videos by @${params.handle}.` },
+  loader: ({ context, params }) =>
+    context.queryClient.ensureQueryData(profileQueryOptions(params.handle)),
+  head: ({ params, loaderData }) => {
+    const url = `${SITE_URL}/u/${params.handle}`;
+    const profile = loaderData?.profile;
+    if (!profile) {
+      return {
+        meta: [
+          { title: `Profile not found — ${SITE_NAME}` },
+          { name: "description", content: `No creator with handle @${params.handle} on ${SITE_NAME}.` },
+          { name: "robots", content: "noindex" },
+          { property: "og:url", content: url },
+        ],
+        links: [{ rel: "canonical", href: url }],
+      };
+    }
+    const displayName = profile.display_name ?? params.handle;
+    const title = buildProfileTitle(displayName, profile.handle);
+    const description = buildProfileDescription({
+      displayName,
+      handle: profile.handle,
+      bio: profile.bio,
+      postCount: profile.post_count,
+    });
+    const image = profile.avatar_url ? absUrl(profile.avatar_url) : null;
+
+    const meta: Array<Record<string, string>> = [
+      { title },
+      { name: "description", content: description },
+      { name: "author", content: `@${profile.handle}` },
+      { property: "og:title", content: title },
+      { property: "og:description", content: description },
       { property: "og:type", content: "profile" },
-      { property: "og:url", content: `https://myalgorhythm.lovable.app/u/${params.handle}` },
-      { property: "profile:username", content: params.handle },
-    ],
-    links: [{ rel: "canonical", href: `https://myalgorhythm.lovable.app/u/${params.handle}` }],
-    scripts: [
-      {
-        type: "application/ld+json",
-        children: JSON.stringify({
-          "@context": "https://schema.org",
-          "@type": "Person",
-          name: params.handle,
-          alternateName: `@${params.handle}`,
-          url: `https://myalgorhythm.lovable.app/u/${params.handle}`,
-        }),
+      { property: "og:url", content: url },
+      { property: "og:site_name", content: SITE_NAME },
+      { property: "profile:username", content: profile.handle },
+      { name: "twitter:title", content: title },
+      { name: "twitter:description", content: description },
+      { name: "twitter:card", content: image ? "summary_large_image" : "summary" },
+    ];
+    if (image) {
+      meta.push({ property: "og:image", content: image });
+      meta.push({ property: "og:image:alt", content: displayName });
+      meta.push({ name: "twitter:image", content: image });
+    }
+
+    const sameAs = Array.isArray((profile as { links?: unknown }).links)
+      ? ((profile as { links: unknown[] }).links.filter((l): l is string => typeof l === "string"))
+      : [];
+
+    const personSchema = {
+      "@context": "https://schema.org",
+      "@type": "ProfilePage",
+      mainEntity: {
+        "@type": "Person",
+        name: displayName,
+        alternateName: `@${profile.handle}`,
+        url,
+        ...(image ? { image } : {}),
+        ...(profile.bio ? { description: profile.bio } : {}),
+        ...(sameAs.length ? { sameAs } : {}),
       },
-    ],
-  }),
+    };
+
+    return {
+      meta,
+      links: [{ rel: "canonical", href: url }],
+      scripts: [{ type: "application/ld+json", children: JSON.stringify(personSchema) }],
+    };
+  },
   component: ProfilePage,
 });
 
 function ProfilePage() {
   const { handle } = Route.useParams();
-  const fetch = useServerFn(getProfileByHandle);
   const follow = useServerFn(toggleFollow);
   const subFn = useServerFn(createCreatorSubCheckout);
   const { user } = useAuth();
@@ -52,10 +104,7 @@ function ProfilePage() {
   const [tipOpen, setTipOpen] = useState(false);
   const [subOpen, setSubOpen] = useState(false);
 
-  const { data, refetch } = useQuery({
-    queryKey: ["profile", handle],
-    queryFn: () => fetch({ data: { handle } }),
-  });
+  const { data, refetch } = useSuspenseQuery(profileQueryOptions(handle));
   const { isSubscribed } = useCreatorSubscription(data?.profile?.id);
 
   const onFollow = async () => {
@@ -77,7 +126,6 @@ function ProfilePage() {
     return res.clientSecret;
   } : null;
 
-  if (!data) return <AppShell><div className="grid h-dvh place-items-center text-sm text-muted-foreground">Loading…</div></AppShell>;
   if (!data.profile) return <AppShell><div className="grid h-dvh place-items-center text-sm text-muted-foreground">Profile not found.</div></AppShell>;
 
   const p = data.profile;
