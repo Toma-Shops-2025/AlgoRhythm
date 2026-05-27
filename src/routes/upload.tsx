@@ -224,6 +224,19 @@ function UploadPage() {
         <p className="mt-1 text-xs uppercase tracking-[0.2em] text-muted-foreground">Audio or video. AI-made.</p>
 
         <form onSubmit={submit} className="mt-6 space-y-4">
+          {!isPro && (
+            <Link
+              to="/pricing"
+              className="block rounded-md border border-gold/40 bg-gradient-to-r from-gold/10 to-transparent p-3 text-xs"
+            >
+              <span className="flex items-center gap-2 font-medium text-gold">
+                <Sparkles className="h-3.5 w-3.5" /> Unlock AI features with Pro
+              </span>
+              <span className="mt-1 block text-muted-foreground">
+                AI cover art, AI title/caption/hashtags, lyric videos and scene generation are Pro perks. Upgrade →
+              </span>
+            </Link>
+          )}
           <FilePick
             label="Media (audio or video)"
             icon={type === "video" ? Film : Music}
