@@ -25,10 +25,11 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { createPortalSession } from "@/lib/payments.functions";
+import { getMyLibrary } from "@/lib/saves.functions";
 import { getStripeEnvironment } from "@/lib/stripe";
 import { useProSubscription } from "@/hooks/useSubscription";
 import { supabase } from "@/integrations/supabase/client";
-import { LogOut, Settings, Plus, Crown, Trash2, Camera } from "lucide-react";
+import { LogOut, Settings, Plus, Crown, Trash2, Camera, Bookmark, Grid3x3 } from "lucide-react";
 import { ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 
@@ -64,6 +65,7 @@ function MePage() {
       .then(({ data }) => setIsAdmin(!!data));
   }, [user]);
   const fetchMe = useServerFn(getMyProfile);
+  const fetchLibrary = useServerFn(getMyLibrary);
   const update = useServerFn(updateMyProfile);
   const removePost = useServerFn(deletePost);
   const editPost = useServerFn(updatePost);
@@ -80,6 +82,7 @@ function MePage() {
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [accountBusy, setAccountBusy] = useState(false);
   const [confirmText, setConfirmText] = useState("");
+  const [tab, setTab] = useState<"posts" | "library">("posts");
 
   useEffect(() => { if (!loading && !user) navigate({ to: "/login" }); }, [loading, user, navigate]);
 
@@ -87,6 +90,12 @@ function MePage() {
     queryKey: ["me", user?.id],
     queryFn: () => fetchMe({}),
     enabled: !!user,
+  });
+
+  const { data: library } = useQuery({
+    queryKey: ["my-library", user?.id],
+    queryFn: () => fetchLibrary({}),
+    enabled: !!user && tab === "library",
   });
 
   useEffect(() => {
@@ -262,31 +271,67 @@ function MePage() {
           </>
         )}
 
-        <div className="mt-8 flex items-center justify-between">
-          <h2 className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Your posts</h2>
-          <Link to="/upload" className="inline-flex items-center gap-1 text-xs text-gold"><Plus className="h-3.5 w-3.5" /> New</Link>
-        </div>
-        <div className="mt-3 grid grid-cols-3 gap-1.5 pb-12">
-          {data.posts.map((post) => (
-            <PostGridItem
-              key={post.id}
-              post={post}
-              isOwner
-              onEdit={(pp) =>
-                setEditingPost({
-                  id: pp.id,
-                  title: pp.title,
-                  description: (post.description as string | null) ?? "",
-                  tags: ((post.tags as string[] | null) ?? []).map((t) => `#${t}`).join(" "),
-                })
-              }
-              onDelete={(pp) => setDeletingPostId(pp.id)}
-            />
-          ))}
-          {data.posts.length === 0 && (
-            <p className="col-span-3 py-8 text-center text-sm text-muted-foreground">No posts yet.</p>
+        <div className="mt-8 flex items-center justify-between border-b border-border/60">
+          <div className="flex gap-1">
+            <button
+              onClick={() => setTab("posts")}
+              className={`inline-flex items-center gap-1.5 border-b-2 px-3 py-2 text-[11px] uppercase tracking-[0.2em] transition ${
+                tab === "posts"
+                  ? "border-gold text-gold"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <Grid3x3 className="h-3.5 w-3.5" /> Posts
+            </button>
+            <button
+              onClick={() => setTab("library")}
+              className={`inline-flex items-center gap-1.5 border-b-2 px-3 py-2 text-[11px] uppercase tracking-[0.2em] transition ${
+                tab === "library"
+                  ? "border-gold text-gold"
+                  : "border-transparent text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              <Bookmark className="h-3.5 w-3.5" /> Library
+            </button>
+          </div>
+          {tab === "posts" && (
+            <Link to="/upload" className="inline-flex items-center gap-1 text-xs text-gold"><Plus className="h-3.5 w-3.5" /> New</Link>
           )}
         </div>
+        {tab === "posts" ? (
+          <div className="mt-3 grid grid-cols-3 gap-1.5 pb-12">
+            {data.posts.map((post) => (
+              <PostGridItem
+                key={post.id}
+                post={post}
+                isOwner
+                onEdit={(pp) =>
+                  setEditingPost({
+                    id: pp.id,
+                    title: pp.title,
+                    description: (post.description as string | null) ?? "",
+                    tags: ((post.tags as string[] | null) ?? []).map((t) => `#${t}`).join(" "),
+                  })
+                }
+                onDelete={(pp) => setDeletingPostId(pp.id)}
+              />
+            ))}
+            {data.posts.length === 0 && (
+              <p className="col-span-3 py-8 text-center text-sm text-muted-foreground">No posts yet.</p>
+            )}
+          </div>
+        ) : (
+          <div className="mt-3 grid grid-cols-3 gap-1.5 pb-12">
+            {(library?.posts ?? []).map((post) => post && (
+              <PostGridItem key={post.id} post={post} />
+            ))}
+            {library && library.posts.length === 0 && (
+              <p className="col-span-3 py-8 text-center text-sm text-muted-foreground">
+                Tap the bookmark on any post to save it here.
+              </p>
+            )}
+          </div>
+        )}
 
         <div className="mt-10 border-t border-border/60 pt-6 pb-16 space-y-4">
           <h2 className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Legal</h2>

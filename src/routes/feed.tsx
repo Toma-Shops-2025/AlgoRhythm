@@ -7,6 +7,7 @@ import { FeedItem, type FeedPost } from "@/components/FeedItem";
 import { CommentsSheet } from "@/components/CommentsSheet";
 import { getFeed } from "@/lib/feed.functions";
 import { toggleLike, toggleFollow, getMyInteractions } from "@/lib/social.functions";
+import { toggleSave } from "@/lib/saves.functions";
 import { useAuth } from "@/lib/auth";
 import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
@@ -30,6 +31,7 @@ function FeedPage() {
   const fetchInteractions = useServerFn(getMyInteractions);
   const like = useServerFn(toggleLike);
   const follow = useServerFn(toggleFollow);
+  const save = useServerFn(toggleSave);
   const { user } = useAuth();
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -95,6 +97,7 @@ function FeedPage() {
 
   const likedIds = new Set(me?.likedPostIds ?? []);
   const followingIds = new Set(me?.followingIds ?? []);
+  const savedIds = new Set(me?.savedPostIds ?? []);
 
   // track which item is on screen
   useEffect(() => {
@@ -144,6 +147,22 @@ function FeedPage() {
     } catch (e) { toast.error((e as Error).message); }
   };
 
+  const onSave = async (post: FeedPost) => {
+    if (!user) { navigate({ to: "/login" }); return; }
+    try {
+      const pid = realId(post.id);
+      const res = await save({ data: { postId: pid } });
+      qc.setQueryData(["interactions", user.id, basePosts.map((p) => p.id).join(",")], (old: { likedPostIds: string[]; followingIds: string[]; savedPostIds: string[] } | undefined) => ({
+        likedPostIds: old?.likedPostIds ?? [],
+        followingIds: old?.followingIds ?? [],
+        savedPostIds: res.saved
+          ? [...(old?.savedPostIds ?? []), pid]
+          : (old?.savedPostIds ?? []).filter((id) => id !== pid),
+      }));
+      toast.success(res.saved ? "Saved to your library" : "Removed from library");
+    } catch (e) { toast.error((e as Error).message); }
+  };
+
   return (
     <AppShell>
       <h1 className="sr-only">AI Music and Video Feed</h1>
@@ -171,9 +190,11 @@ function FeedPage() {
               active={idx === active}
               liked={likedIds.has(realId(post.id))}
               following={post.creator ? followingIds.has(post.creator.id) : false}
+              saved={savedIds.has(realId(post.id))}
               onLike={() => onLike(post)}
               onFollow={() => onFollow(post)}
               onComment={() => setCommentsFor(realId(post.id))}
+              onSave={() => onSave(post)}
               muted={muted}
               onToggleMute={() => setMuted((m) => !m)}
             />
