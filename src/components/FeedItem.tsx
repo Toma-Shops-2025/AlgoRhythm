@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { Heart, MessageCircle, Share2, Play, Volume2, VolumeX, Gift } from "lucide-react";
+import { Heart, MessageCircle, Share2, Play, Volume2, VolumeX, Gift, Flag } from "lucide-react";
 import { AudioVisualizer } from "./AudioVisualizer";
 import { Watermark } from "./Logo";
 import { TipDialog } from "./TipDialog";
+import { ReportDialog } from "./ReportDialog";
 import { useAuth } from "@/lib/auth";
 import { useNavigate } from "@tanstack/react-router";
 import { cn } from "@/lib/utils";
@@ -53,6 +54,7 @@ export function FeedItem({
   const audioRef = useRef<HTMLAudioElement>(null);
   const [playing, setPlaying] = useState(false);
   const [tipOpen, setTipOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -149,6 +151,14 @@ export function FeedItem({
         <ActionButton onClick={share} ariaLabel="Share post">
           <Share2 className="h-7 w-7" />
         </ActionButton>
+        {user && post.creator && user.id !== post.creator.id && (
+          <ActionButton
+            ariaLabel="Report post"
+            onClick={() => setReportOpen(true)}
+          >
+            <Flag className="h-6 w-6" />
+          </ActionButton>
+        )}
       </div>
 
       {/* bottom meta */}
@@ -189,6 +199,12 @@ export function FeedItem({
           postId={post.id}
         />
       )}
+      <ReportDialog
+        open={reportOpen}
+        onOpenChange={setReportOpen}
+        targetType="post"
+        targetId={post.id}
+      />
     </section>
   );
 }

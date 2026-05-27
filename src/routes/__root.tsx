@@ -11,6 +11,7 @@ import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client";
+import { CookieBanner } from "@/components/CookieBanner";
 
 import appCss from "../styles.css?url";
 
@@ -150,6 +151,7 @@ function RootComponent() {
       <AuthListener />
       <Outlet />
       <Toaster richColors theme="dark" position="top-center" />
+      <CookieBanner />
     </QueryClientProvider>
   );
 }

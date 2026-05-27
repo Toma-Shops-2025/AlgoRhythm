@@ -25,17 +25,24 @@ function SignupPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [displayName, setDisplayName] = useState("");
+  const [birthYear, setBirthYear] = useState("");
+  const [agreed, setAgreed] = useState(false);
   const [loading, setLoading] = useState(false);
 
   const onEmail = async (e: React.FormEvent) => {
     e.preventDefault();
+    const yr = parseInt(birthYear, 10);
+    const thisYear = new Date().getFullYear();
+    if (!yr || yr < 1900 || yr > thisYear) return toast.error("Enter a valid birth year");
+    if (thisYear - yr < 13) return toast.error("You must be at least 13 years old to sign up");
+    if (!agreed) return toast.error("Please accept the Terms and Privacy Policy");
     setLoading(true);
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         emailRedirectTo: window.location.origin + "/feed",
-        data: { display_name: displayName },
+        data: { display_name: displayName, birth_year: yr, terms_accepted_at: new Date().toISOString() },
       },
     });
     setLoading(false);
@@ -80,6 +87,17 @@ function SignupPage() {
             className="w-full rounded-md border border-border bg-card px-4 py-3 text-sm outline-none focus:border-gold/50" />
           <input type="password" required minLength={8} placeholder="Password (8+ chars)" value={password} onChange={(e) => setPassword(e.target.value)}
             className="w-full rounded-md border border-border bg-card px-4 py-3 text-sm outline-none focus:border-gold/50" />
+          <input type="number" required min="1900" max={new Date().getFullYear()} placeholder="Birth year (e.g. 1995)" value={birthYear} onChange={(e) => setBirthYear(e.target.value)}
+            className="w-full rounded-md border border-border bg-card px-4 py-3 text-sm outline-none focus:border-gold/50" />
+          <label className="flex items-start gap-2 text-xs text-muted-foreground">
+            <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} className="mt-0.5 accent-[var(--gold)]" />
+            <span>
+              I'm at least 13 years old and I agree to the{" "}
+              <Link to="/terms" className="text-gold">Terms</Link>,{" "}
+              <Link to="/privacy" className="text-gold">Privacy Policy</Link>, and{" "}
+              <Link to="/guidelines" className="text-gold">Community Guidelines</Link>.
+            </span>
+          </label>
           <button disabled={loading} type="submit"
             className="w-full rounded-md bg-gradient-gold px-4 py-3 text-sm font-medium text-primary-foreground shadow-[0_0_24px_-6px_var(--gold)] disabled:opacity-50">
             Create account
