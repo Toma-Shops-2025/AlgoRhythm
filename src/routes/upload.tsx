@@ -4,11 +4,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { useServerFn } from "@tanstack/react-start";
 import { createPost } from "@/lib/posts.functions";
-import { generateCoverImage, generateMusicVideoScenes, generatePostMetadata } from "@/lib/ai.functions";
-import { audioToVideo, audioToMusicVideo, b64ToFile, loadImageFromB64 } from "@/lib/audioToVideo";
+import { generateCoverImage, generatePostMetadata } from "@/lib/ai.functions";
+import { audioToVideo, b64ToFile } from "@/lib/audioToVideo";
 import { AppShell } from "@/components/AppShell";
 import { toast } from "sonner";
-import { Music, Film, Image as ImageIcon, Loader2, Sparkles, Video as VideoIcon, Wand2 } from "lucide-react";
+import { Music, Film, Image as ImageIcon, Loader2, Sparkles, Video as VideoIcon } from "lucide-react";
 
 export const Route = createFileRoute("/upload")({
   head: () => ({
@@ -30,7 +30,6 @@ function UploadPage() {
   const navigate = useNavigate();
   const post = useServerFn(createPost);
   const genCover = useServerFn(generateCoverImage);
-  const genScenes = useServerFn(generateMusicVideoScenes);
   const genMeta = useServerFn(generatePostMetadata);
 
   const [media, setMedia] = useState<File | null>(null);
@@ -46,8 +45,6 @@ function UploadPage() {
   const [busyLabel, setBusyLabel] = useState<string>("");
   const [generating, setGenerating] = useState(false);
   const [convertToVideo, setConvertToVideo] = useState(false);
-  const [videoMode, setVideoMode] = useState<"visualizer" | "music_video">("visualizer");
-  const [scenePrompt, setScenePrompt] = useState("");
 
   const coverPreview = useMemo(() => (cover ? URL.createObjectURL(cover) : null), [cover]);
 
@@ -107,7 +104,7 @@ function UploadPage() {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!media || !type) return toast.error("Pick an audio or video file");
-    if (type === "audio" && convertToVideo && videoMode === "visualizer" && !cover) {
+    if (type === "audio" && convertToVideo && !cover) {
       return toast.error("Converting to video needs a cover image — upload one or generate with AI");
     }
     setBusy(true);
@@ -117,24 +114,11 @@ function UploadPage() {
       let derivedCover: File | null = cover;
 
       if (type === "audio" && convertToVideo) {
-        if (videoMode === "visualizer" && cover) {
+        if (cover) {
           setBusyLabel("Rendering your video…");
           const blob = await audioToVideo(media, cover);
           mediaFile = new File([blob], `${crypto.randomUUID()}.webm`, { type: "video/webm" });
           postType = "video";
-        } else if (videoMode === "music_video") {
-          const prompt = (scenePrompt.trim() || title.trim() || caption.trim() || idea.trim());
-          if (!prompt) throw new Error("Add a title or scene description so the AI knows what to imagine");
-          setBusyLabel("Imagining scenes with AI…");
-          const { images } = await genScenes({ data: { prompt, count: 5 } });
-          setBusyLabel("Editing your music video…");
-          const imgs = await Promise.all(images.map((b) => loadImageFromB64(b)));
-          const blob = await audioToMusicVideo(media, imgs);
-          mediaFile = new File([blob], `${crypto.randomUUID()}.webm`, { type: "video/webm" });
-          postType = "video";
-          if (!derivedCover) {
-            derivedCover = b64ToFile(images[0], `cover-${Date.now()}.png`, "image/png");
-          }
         }
       }
 
@@ -233,40 +217,12 @@ function UploadPage() {
           )}
 
           {type === "audio" && convertToVideo && (
-            <div className="space-y-3 rounded-md border border-gold/20 bg-card/30 p-3">
-              <div className="grid grid-cols-2 gap-2">
-                <ModeOption
-                  active={videoMode === "visualizer"}
-                  onClick={() => setVideoMode("visualizer")}
-                  icon={VideoIcon}
-                  title="Visualizer"
-                  desc="Cover + reactive bars"
-                />
-                <ModeOption
-                  active={videoMode === "music_video"}
-                  onClick={() => setVideoMode("music_video")}
-                  icon={Wand2}
-                  title="AI music video"
-                  desc="Cinematic scenes, edited"
-                />
-              </div>
-              {videoMode === "music_video" && (
-                <Field label="Scene direction (optional)">
-                  <textarea
-                    rows={2}
-                    maxLength={500}
-                    value={scenePrompt}
-                    onChange={(e) => setScenePrompt(e.target.value)}
-                    placeholder="e.g. neon-soaked Tokyo streets at midnight, lone biker, slow motion rain"
-                    className="w-full rounded-md border border-border bg-card px-3 py-2.5 text-sm outline-none focus:border-gold/50"
-                  />
-                  <span className="mt-1 block text-[11px] text-muted-foreground">
-                    Leave blank to use your title and description. 5 cinematic scenes are generated and edited to the audio.
-                  </span>
-                </Field>
-              )}
-              {videoMode === "visualizer" && !cover && (
+            <div className="rounded-md border border-gold/20 bg-card/30 p-3">
+              {!cover && (
                 <p className="text-[11px] text-muted-foreground">Pick or generate a cover image above to use as the visualizer background.</p>
+              )}
+              {cover && (
+                <p className="text-[11px] text-muted-foreground">Your cover will animate with a reactive visualizer synced to the audio.</p>
               )}
             </div>
           )}
@@ -350,23 +306,5 @@ function FilePick({
       </div>
       <input type="file" accept={accept} className="hidden" onChange={(e) => onChange(e.target.files?.[0] ?? null)} />
     </label>
-  );
-}
-
-function ModeOption({
-  active, onClick, icon: Icon, title, desc,
-}: { active: boolean; onClick: () => void; icon: typeof Music; title: string; desc: string }) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`flex flex-col items-start gap-1 rounded-md border p-3 text-left transition ${
-        active ? "border-gold bg-gold/10 text-foreground" : "border-border bg-card/40 text-muted-foreground hover:border-gold/40"
-      }`}
-    >
-      <Icon className={`h-4 w-4 ${active ? "text-gold" : ""}`} />
-      <span className="text-sm text-foreground">{title}</span>
-      <span className="text-[11px] text-muted-foreground">{desc}</span>
-    </button>
   );
 }
