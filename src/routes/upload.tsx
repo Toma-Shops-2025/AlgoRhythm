@@ -299,10 +299,13 @@ function UploadPage() {
                 />
                 <ModeOption
                   active={videoMode === "lyric"}
-                  onClick={() => setVideoMode("lyric")}
+                  onClick={() => {
+                    if (!isPro) { toast.error("Lyric videos are a Pro feature"); navigate({ to: "/pricing" }); return; }
+                    setVideoMode("lyric");
+                  }}
                   icon={Type}
                   title="Lyric video"
-                  desc="AI lyrics + AI scenes"
+                  desc={isPro ? "AI lyrics + AI scenes" : "Pro only"}
                 />
               </div>
               {videoMode === "visualizer" && !cover && (
