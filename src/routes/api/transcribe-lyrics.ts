@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { createClient } from "@supabase/supabase-js";
+import { userIsPro } from "@/lib/pro.server";
 
 const GATEWAY = "https://ai.gateway.lovable.dev/v1";
 
@@ -61,6 +62,13 @@ export const Route = createFileRoute("/api/transcribe-lyrics")({
         const { data: claims, error: claimsErr } = await sb.auth.getClaims(token);
         if (claimsErr || !claims?.claims?.sub) {
           return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
+        }
+        const userId = claims.claims.sub as string;
+        if (!(await userIsPro(userId))) {
+          return new Response(
+            JSON.stringify({ error: "AI lyric transcription is a Pro feature. Upgrade to Pro to unlock it." }),
+            { status: 402 },
+          );
         }
         const form = await request.formData();
         const file = form.get("audio");
