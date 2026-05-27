@@ -28,7 +28,7 @@ import { createPortalSession } from "@/lib/payments.functions";
 import { getStripeEnvironment } from "@/lib/stripe";
 import { useProSubscription } from "@/hooks/useSubscription";
 import { supabase } from "@/integrations/supabase/client";
-import { LogOut, Settings, Plus, Crown, Trash2 } from "lucide-react";
+import { LogOut, Settings, Plus, Crown, Trash2, Camera } from "lucide-react";
 import { ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 
@@ -183,11 +183,21 @@ function MePage() {
                   {p.display_name.slice(0, 1).toUpperCase()}
                 </div>
               )}
+              <span
+                aria-hidden
+                className="absolute -bottom-1 -right-1 grid h-7 w-7 place-items-center rounded-full bg-gradient-gold text-primary-foreground shadow ring-2 ring-background"
+              >
+                <Camera className="h-3.5 w-3.5" />
+              </span>
               <input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && onAvatar(e.target.files[0])} />
             </label>
             <div>
               <h1 className="text-lg font-medium">{p.display_name}</h1>
               <div className="text-sm text-gold">@{p.handle}</div>
+              <label className="mt-1 inline-flex cursor-pointer items-center gap-1 text-[11px] text-muted-foreground hover:text-gold">
+                <Camera className="h-3 w-3" /> Change avatar
+                <input type="file" accept="image/*" className="hidden" onChange={(e) => e.target.files?.[0] && onAvatar(e.target.files[0])} />
+              </label>
             </div>
           </div>
           <button aria-label="Sign out" onClick={() => signOut().then(() => navigate({ to: "/" }))}
