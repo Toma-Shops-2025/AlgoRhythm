@@ -113,7 +113,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
           "@context": "https://schema.org",
           "@type": "Organization",
           name: "AlgoRhythm",
-          url: "https://myalgorhythm.lovable.app",
+          url: "https://myalgorhythm.online",
           description: "The vertical feed for AI-made music and music videos.",
         }),
       },

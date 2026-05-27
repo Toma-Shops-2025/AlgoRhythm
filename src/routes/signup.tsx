@@ -12,10 +12,10 @@ export const Route = createFileRoute("/signup")({
       { name: "description", content: "Create your AlgoRhythm profile and start posting AI-made music and videos to a viral vertical feed." },
       { property: "og:title", content: "Create your profile — AlgoRhythm" },
       { property: "og:description", content: "Join AlgoRhythm — the home for AI music creators." },
-      { property: "og:url", content: "https://myalgorhythm.lovable.app/signup" },
+      { property: "og:url", content: "https://myalgorhythm.online/signup" },
       { name: "robots", content: "noindex" },
     ],
-    links: [{ rel: "canonical", href: "https://myalgorhythm.lovable.app/signup" }],
+    links: [{ rel: "canonical", href: "https://myalgorhythm.online/signup" }],
   }),
   component: SignupPage,
 });

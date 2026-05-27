@@ -17,10 +17,10 @@ export const Route = createFileRoute("/upload")({
       { name: "description", content: "Upload your AI-made track or music video to the AlgoRhythm feed." },
       { property: "og:title", content: "Post to AlgoRhythm" },
       { property: "og:description", content: "Publish your AI music or video to the AlgoRhythm feed." },
-      { property: "og:url", content: "https://myalgorhythm.lovable.app/upload" },
+      { property: "og:url", content: "https://myalgorhythm.online/upload" },
       { name: "robots", content: "noindex" },
     ],
-    links: [{ rel: "canonical", href: "https://myalgorhythm.lovable.app/upload" }],
+    links: [{ rel: "canonical", href: "https://myalgorhythm.online/upload" }],
   }),
   component: UploadPage,
 });
