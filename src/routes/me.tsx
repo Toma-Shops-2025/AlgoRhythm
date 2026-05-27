@@ -29,6 +29,7 @@ import { getStripeEnvironment } from "@/lib/stripe";
 import { useProSubscription } from "@/hooks/useSubscription";
 import { supabase } from "@/integrations/supabase/client";
 import { LogOut, Settings, Plus, Crown, Trash2 } from "lucide-react";
+import { ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/me")({
@@ -51,6 +52,17 @@ function MePage() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const [isAdmin, setIsAdmin] = useState(false);
+  useEffect(() => {
+    if (!user) { setIsAdmin(false); return; }
+    supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id)
+      .eq("role", "admin")
+      .maybeSingle()
+      .then(({ data }) => setIsAdmin(!!data));
+  }, [user]);
   const fetchMe = useServerFn(getMyProfile);
   const update = useServerFn(updateMyProfile);
   const removePost = useServerFn(deletePost);
@@ -183,6 +195,18 @@ function MePage() {
             <LogOut className="h-4 w-4" />
           </button>
         </div>
+
+        {isAdmin && (
+          <Link
+            to="/admin"
+            className="mt-4 flex items-center justify-between rounded-xl border border-gold/40 bg-gold/5 px-4 py-3 text-sm"
+          >
+            <span className="flex items-center gap-2">
+              <ShieldCheck className="h-4 w-4 text-gold" /> Admin panel
+            </span>
+            <span className="text-xs text-gold">Open →</span>
+          </Link>
+        )}
 
         <div className="mt-5 flex items-center gap-6 text-sm">
           <Stat label="Posts" v={p.post_count} />
