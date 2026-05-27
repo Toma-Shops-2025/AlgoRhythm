@@ -423,6 +423,21 @@ function ActionButton({
   );
 }
 
+function ShareRow({
+  label, sub, onClick,
+}: { label: string; sub: string; onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="block w-full rounded-lg border border-border bg-background/50 p-3 text-left text-sm hover:border-gold/40"
+    >
+      <div className="font-medium">{label}</div>
+      <div className="line-clamp-1 text-xs text-muted-foreground">{sub}</div>
+    </button>
+  );
+}
+
 function Avatar({ url, name }: { url: string | null; name: string }) {
   if (url) return <img src={url} alt={name} className="h-9 w-9 rounded-full object-cover ring-1 ring-gold/40" />;
   return (
