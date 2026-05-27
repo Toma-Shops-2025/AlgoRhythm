@@ -1,7 +1,8 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
+import { useProSubscription } from "@/hooks/useSubscription";
 import { useServerFn } from "@tanstack/react-start";
 import { createPost } from "@/lib/posts.functions";
 import { generateCoverImage, generatePostMetadata, generateMusicVideoScenes } from "@/lib/ai.functions";
@@ -32,6 +33,7 @@ export const Route = createFileRoute("/upload")({
 
 function UploadPage() {
   const { user, loading } = useAuth();
+  const { isPro } = useProSubscription();
   const navigate = useNavigate();
   const search = Route.useSearch();
   const regenCount = search.regen ?? 0;
