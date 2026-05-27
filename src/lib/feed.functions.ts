@@ -8,11 +8,24 @@ export const getFeed = createServerFn({ method: "GET" })
       .object({
         cursor: z.string().nullish(),
         limit: z.number().min(1).max(30).optional(),
+        viewerId: z.string().uuid().nullish(),
       })
       .parse(input ?? {}),
   )
   .handler(async ({ data }) => {
     const limit = data.limit ?? 10;
+    // Hide content from users the viewer has blocked, or who have blocked the viewer.
+    let excludeCreatorIds: string[] = [];
+    if (data.viewerId) {
+      const [{ data: outgoing }, { data: incoming }] = await Promise.all([
+        supabaseAdmin.from("blocks").select("blocked_id").eq("blocker_id", data.viewerId),
+        supabaseAdmin.from("blocks").select("blocker_id").eq("blocked_id", data.viewerId),
+      ]);
+      excludeCreatorIds = [
+        ...(outgoing ?? []).map((r) => r.blocked_id),
+        ...(incoming ?? []).map((r) => r.blocker_id),
+      ];
+    }
     let q = supabaseAdmin
       .from("posts")
       .select(
@@ -22,6 +35,9 @@ export const getFeed = createServerFn({ method: "GET" })
       .order("created_at", { ascending: false })
       .limit(limit);
     if (data.cursor) q = q.lt("created_at", data.cursor);
+    if (excludeCreatorIds.length) {
+      q = q.not("creator_id", "in", `(${excludeCreatorIds.join(",")})`);
+    }
     const { data: posts, error } = await q;
     if (error) throw new Error(error.message);
 
