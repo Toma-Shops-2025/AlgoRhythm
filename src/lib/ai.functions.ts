@@ -98,6 +98,19 @@ async function generateOneImage(apiKey: string, prompt: string): Promise<string>
   return b64;
 }
 
+async function generateOneImageWithRetry(apiKey: string, prompt: string, attempts = 3): Promise<string> {
+  let lastErr: unknown;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await generateOneImage(apiKey, prompt);
+    } catch (e) {
+      lastErr = e;
+      await new Promise((r) => setTimeout(r, 400 * (i + 1)));
+    }
+  }
+  throw lastErr instanceof Error ? lastErr : new Error("Image generation failed");
+}
+
 export const generateCoverImage = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: { prompt: string }) =>
@@ -150,7 +163,16 @@ export const generateMusicVideoScenes = createServerFn({ method: "POST" })
       `${shots[i % shots.length]} for a music video about: "${data.prompt}". ${style}. 9:16 vertical framing.`,
     );
 
-    // Generate in parallel for speed.
-    const images = await Promise.all(prompts.map((p) => generateOneImage(apiKey, p)));
+    // Generate in parallel; tolerate individual failures (safety filters, transient errors)
+    // so one bad scene doesn't kill the whole music video.
+    const settled = await Promise.all(
+      prompts.map((p) => generateOneImageWithRetry(apiKey, p).catch(() => null)),
+    );
+    const good = settled.filter((b): b is string => !!b);
+    if (good.length < 2) {
+      throw new Error("Could not generate enough scenes. Please try again with a different description.");
+    }
+    // Fill any missing slots by recycling successful images so the slideshow stays the requested length.
+    const images = settled.map((b, i) => b ?? good[i % good.length]);
     return { images };
   });
