@@ -106,7 +106,7 @@ export const searchAll = createServerFn({ method: "GET" })
     const [{ data: posts }, { data: profiles }] = await Promise.all([
       supabaseAdmin
         .from("posts")
-        .select("id, title, type, cover_url, creator_id, like_count")
+        .select("id, title, type, cover_url, media_url, creator_id, like_count")
         .eq("is_published", true)
         .ilike("title", term)
         .limit(20),

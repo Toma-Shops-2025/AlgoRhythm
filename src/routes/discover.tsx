@@ -5,7 +5,8 @@ import { useQuery } from "@tanstack/react-query";
 import { AppShell } from "@/components/AppShell";
 import { getFeed, searchAll } from "@/lib/feed.functions";
 import { useAuth } from "@/lib/auth";
-import { Search } from "lucide-react";
+import { Search, Play } from "lucide-react";
+import bgLoop from "@/assets/bg-loop.mp4.asset.json";
 
 export const Route = createFileRoute("/discover")({
   head: () => ({
@@ -39,7 +40,8 @@ function DiscoverPage() {
 
   return (
     <AppShell>
-      <div className="px-5 pt-6">
+      <div className="relative px-5 pt-6">
+        <BackgroundVideo />
         <h1 className="text-2xl tracking-tight text-gradient-gold">Discover</h1>
         <div className="relative mt-4">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -80,22 +82,46 @@ function DiscoverPage() {
   );
 }
 
-function PostGrid({ posts }: { posts: Array<{ id: string; title: string; cover_url: string | null; type: string }> }) {
+function BackgroundVideo() {
+  return (
+    <video
+      src={bgLoop.url}
+      autoPlay
+      loop
+      muted
+      playsInline
+      aria-hidden
+      className="pointer-events-none fixed inset-0 -z-10 h-full w-full object-cover opacity-50"
+    />
+  );
+}
+
+function PostGrid({ posts }: { posts: Array<{ id: string; title: string; cover_url: string | null; type: string; media_url?: string | null }> }) {
   if (posts.length === 0) return <p className="text-sm text-muted-foreground">Nothing yet.</p>;
   return (
     <div className="grid grid-cols-3 gap-1.5">
-      {posts.map((p) => (
-        <Link key={p.id} to="/p/$id" params={{ id: p.id }} className="relative aspect-[3/4] overflow-hidden rounded-md bg-card">
-          {p.cover_url ? (
-            <img src={p.cover_url} alt={p.title} className="absolute inset-0 h-full w-full object-cover" />
-          ) : (
-            <div className="absolute inset-0 bg-gradient-to-br from-card to-background" />
-          )}
-          <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-2">
-            <div className="line-clamp-2 text-[11px] text-white">{p.title}</div>
-          </div>
-        </Link>
-      ))}
+      {posts.map((p) => {
+        const isVideo = p.type === "video";
+        return (
+          <Link key={p.id} to="/p/$id" params={{ id: p.id }} className="relative aspect-[3/4] overflow-hidden rounded-md bg-card">
+            {p.cover_url ? (
+              <img src={p.cover_url} alt={p.title} className="absolute inset-0 h-full w-full object-cover" loading="lazy" />
+            ) : isVideo && p.media_url ? (
+              <video src={`${p.media_url}#t=0.1`} preload="metadata" muted playsInline className="absolute inset-0 h-full w-full object-cover" />
+            ) : (
+              <div className="absolute inset-0 bg-gradient-to-br from-card to-background" />
+            )}
+            {isVideo && (
+              <div className="pointer-events-none absolute right-1.5 top-1.5 grid h-5 w-5 place-items-center rounded-full bg-black/60 backdrop-blur">
+                <Play className="h-2.5 w-2.5 fill-white text-white" />
+              </div>
+            )}
+            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-2">
+              <div className="line-clamp-2 text-[11px] text-white">{p.title}</div>
+            </div>
+          </Link>
+        );
+      })}
     </div>
   );
 }

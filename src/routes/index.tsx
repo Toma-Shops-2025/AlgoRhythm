@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { AppShell } from "@/components/AppShell";
 import { Wordmark } from "@/components/Logo";
 import { Sparkles } from "lucide-react";
+import bgLoop from "@/assets/bg-loop.mp4.asset.json";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -16,6 +17,15 @@ export const Route = createFileRoute("/")({
 function Index() {
   return (
     <AppShell>
+      <video
+        src={bgLoop.url}
+        autoPlay
+        loop
+        muted
+        playsInline
+        aria-hidden
+        className="pointer-events-none fixed inset-0 -z-10 h-full w-full object-cover opacity-50"
+      />
       <header className="flex items-center justify-between px-5 pt-6">
         <Wordmark />
         <a
