@@ -248,8 +248,11 @@ export async function audioToMusicVideo(
 export function loadImageFromB64(b64: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
-    img.onload = () => resolve(img);
+    img.onload = async () => {
+      try { if (img.decode) await img.decode(); } catch { /* noop */ }
+      resolve(img);
+    };
     img.onerror = () => reject(new Error("Could not load generated image"));
-    img.src = `data:image/png;base64,${b64}`;
+    img.src = b64.startsWith("data:") ? b64 : `data:image/png;base64,${b64}`;
   });
 }
