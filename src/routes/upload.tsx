@@ -4,7 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { useServerFn } from "@tanstack/react-start";
 import { createPost } from "@/lib/posts.functions";
-import { generateCoverImage, generateMusicVideoScenes } from "@/lib/ai.functions";
+import { generateCoverImage, generateMusicVideoScenes, generatePostMetadata } from "@/lib/ai.functions";
 import { audioToVideo, audioToMusicVideo, b64ToFile, loadImageFromB64 } from "@/lib/audioToVideo";
 import { AppShell } from "@/components/AppShell";
 import { toast } from "sonner";
@@ -31,12 +31,16 @@ function UploadPage() {
   const post = useServerFn(createPost);
   const genCover = useServerFn(generateCoverImage);
   const genScenes = useServerFn(generateMusicVideoScenes);
+  const genMeta = useServerFn(generatePostMetadata);
 
   const [media, setMedia] = useState<File | null>(null);
   const [cover, setCover] = useState<File | null>(null);
   const [title, setTitle] = useState("");
-  const [description, setDescription] = useState("");
+  const [caption, setCaption] = useState("");
   const [tags, setTags] = useState("");
+  const [hashtags, setHashtags] = useState("");
+  const [idea, setIdea] = useState("");
+  const [genMetaLoading, setGenMetaLoading] = useState(false);
   const [aiTools, setAiTools] = useState("");
   const [busy, setBusy] = useState(false);
   const [busyLabel, setBusyLabel] = useState<string>("");
@@ -68,7 +72,7 @@ function UploadPage() {
   };
 
   const handleGenerateCover = async () => {
-    const prompt = title.trim() || description.trim() || tags.trim();
+    const prompt = title.trim() || caption.trim() || idea.trim() || tags.trim();
     if (!prompt) { toast.error("Add a title first so the AI knows what to draw"); return; }
     setGenerating(true);
     try {
@@ -80,6 +84,23 @@ function UploadPage() {
       toast.error((e as Error).message);
     } finally {
       setGenerating(false);
+    }
+  };
+
+  const handleGenerateMeta = async () => {
+    const seed = idea.trim() || title.trim() || caption.trim();
+    if (!seed) { toast.error("Type a quick idea or title first"); return; }
+    setGenMetaLoading(true);
+    try {
+      const meta = await genMeta({ data: { idea: seed, mediaType: type ?? "audio" } });
+      if (meta.title) setTitle(meta.title);
+      if (meta.caption) setCaption(meta.caption);
+      if (meta.hashtags.length) setHashtags(meta.hashtags.map((h) => `#${h}`).join(" "));
+      toast.success("Title, caption & hashtags generated");
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setGenMetaLoading(false);
     }
   };
 
@@ -102,7 +123,7 @@ function UploadPage() {
           mediaFile = new File([blob], `${crypto.randomUUID()}.webm`, { type: "video/webm" });
           postType = "video";
         } else if (videoMode === "music_video") {
-          const prompt = (scenePrompt.trim() || title.trim() || description.trim());
+          const prompt = (scenePrompt.trim() || title.trim() || caption.trim() || idea.trim());
           if (!prompt) throw new Error("Add a title or scene description so the AI knows what to imagine");
           setBusyLabel("Imagining scenes with AI…");
           const { images } = await genScenes({ data: { prompt, count: 5 } });
@@ -121,14 +142,26 @@ function UploadPage() {
       const mediaUrl = await uploadTo("media", mediaFile);
       const coverUrl = derivedCover ? await uploadTo("covers", derivedCover) : null;
       setBusyLabel("Publishing…");
+      // hashtags + tags both feed into tags[] (lowercased, deduped, # stripped)
+      const tagList = [
+        ...tags.split(/[,\s]+/),
+        ...hashtags.split(/[,\s]+/),
+      ]
+        .map((t) => t.replace(/^#+/, "").trim().toLowerCase())
+        .filter(Boolean);
+      const dedupedTags = Array.from(new Set(tagList)).slice(0, 15);
+      // caption stored in description column
+      const captionBody = caption.trim();
+      const hashLine = hashtags.trim();
+      const fullCaption = [captionBody, hashLine].filter(Boolean).join("\n\n");
       const { post: row } = await post({
         data: {
           type: postType,
           mediaUrl,
           coverUrl,
           title: title.trim(),
-          description: description.trim() || undefined,
-          tags: tags.split(",").map((t) => t.trim().toLowerCase()).filter(Boolean).slice(0, 10),
+          description: fullCaption || undefined,
+          tags: dedupedTags,
           aiTools: aiTools.split(",").map((t) => t.trim()).filter(Boolean).slice(0, 10),
         },
       });
@@ -238,12 +271,41 @@ function UploadPage() {
             </div>
           )}
 
+          <div className="rounded-md border border-gold/20 bg-card/30 p-3 space-y-2">
+            <Field label="Quick idea (optional)">
+              <input
+                value={idea}
+                onChange={(e) => setIdea(e.target.value)}
+                maxLength={500}
+                placeholder="e.g. dreamy late-night drive synthwave"
+                className="w-full rounded-md border border-border bg-card px-3 py-2.5 text-sm outline-none focus:border-gold/50"
+              />
+            </Field>
+            <button
+              type="button"
+              disabled={genMetaLoading}
+              onClick={handleGenerateMeta}
+              className="flex w-full items-center justify-center gap-2 rounded-md border border-gold/40 bg-card/40 px-3 py-2 text-xs uppercase tracking-[0.18em] text-gold hover:bg-card disabled:opacity-50"
+            >
+              {genMetaLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+              {genMetaLoading ? "Writing…" : "Generate title, caption & hashtags"}
+            </button>
+            <p className="text-[11px] text-muted-foreground">
+              Type a short idea (or just a title) and let AI write the rest.
+            </p>
+          </div>
+
           <Field label="Title">
             <input required maxLength={140} value={title} onChange={(e) => setTitle(e.target.value)}
               className="w-full rounded-md border border-border bg-card px-3 py-2.5 text-sm outline-none focus:border-gold/50" />
           </Field>
-          <Field label="Description">
-            <textarea rows={3} maxLength={2000} value={description} onChange={(e) => setDescription(e.target.value)}
+          <Field label="Caption">
+            <textarea rows={3} maxLength={2000} value={caption} onChange={(e) => setCaption(e.target.value)}
+              className="w-full rounded-md border border-border bg-card px-3 py-2.5 text-sm outline-none focus:border-gold/50" />
+          </Field>
+          <Field label="Hashtags">
+            <input value={hashtags} onChange={(e) => setHashtags(e.target.value)}
+              placeholder="#aimusic #synthwave #suno"
               className="w-full rounded-md border border-border bg-card px-3 py-2.5 text-sm outline-none focus:border-gold/50" />
           </Field>
           <Field label="Tags (comma separated)">
