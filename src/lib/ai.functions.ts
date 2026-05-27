@@ -4,25 +4,31 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 const GATEWAY = "https://ai.gateway.lovable.dev/v1";
 
-async function generateOneImage(apiKey: string, prompt: string, size = "1024x1024"): Promise<string> {
-  const res = await fetch(`${GATEWAY}/images/generations`, {
+// Lovable AI Gateway exposes image generation via the chat/completions
+// endpoint on Gemini "image" models. The model returns the image as a
+// data URL inside choices[0].message.images[].image_url.url. We strip the
+// data-URL prefix and return raw base64.
+async function generateOneImage(apiKey: string, prompt: string): Promise<string> {
+  const res = await fetch(`${GATEWAY}/chat/completions`, {
     method: "POST",
     headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
     body: JSON.stringify({
-      model: "openai/gpt-image-2",
-      prompt,
-      quality: "low",
-      size,
-      n: 1,
+      model: "google/gemini-2.5-flash-image",
+      messages: [{ role: "user", content: prompt }],
+      modalities: ["image", "text"],
     }),
   });
   if (!res.ok) {
     const text = await res.text().catch(() => "");
     throw new Error(`Image generation failed: ${res.status} ${text}`);
   }
-  const json = (await res.json()) as { data?: Array<{ b64_json?: string }> };
-  const b64 = json.data?.[0]?.b64_json;
-  if (!b64) throw new Error("No image returned");
+  const json = (await res.json()) as {
+    choices?: Array<{ message?: { images?: Array<{ image_url?: { url?: string } }> } }>;
+  };
+  const url = json.choices?.[0]?.message?.images?.[0]?.image_url?.url;
+  if (!url) throw new Error("No image returned");
+  const b64 = url.startsWith("data:") ? url.split(",")[1] : url;
+  if (!b64) throw new Error("Empty image payload");
   return b64;
 }
 
@@ -37,28 +43,7 @@ export const generateCoverImage = createServerFn({ method: "POST" })
 
     const prompt = `Square album cover art for a track titled or themed: "${data.prompt}". Striking, modern, high-contrast, cinematic lighting, no text, no watermark.`;
 
-    const res = await fetch("https://ai.gateway.lovable.dev/v1/images/generations", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "openai/gpt-image-2",
-        prompt,
-        quality: "low",
-        size: "1024x1024",
-        n: 1,
-      }),
-    });
-
-    if (!res.ok) {
-      const text = await res.text().catch(() => "");
-      throw new Error(`Image generation failed: ${res.status} ${text}`);
-    }
-    const json = (await res.json()) as { data?: Array<{ b64_json?: string }> };
-    const b64 = json.data?.[0]?.b64_json;
-    if (!b64) throw new Error("No image returned");
+    const b64 = await generateOneImage(apiKey, prompt);
     return { b64 };
   });
 
@@ -100,6 +85,6 @@ export const generateMusicVideoScenes = createServerFn({ method: "POST" })
     );
 
     // Generate in parallel for speed.
-    const images = await Promise.all(prompts.map((p) => generateOneImage(apiKey, p, "1024x1536")));
+    const images = await Promise.all(prompts.map((p) => generateOneImage(apiKey, p)));
     return { images };
   });
