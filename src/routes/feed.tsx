@@ -37,6 +37,7 @@ function FeedPage() {
   const [active, setActive] = useState(0);
   const [muted, setMuted] = useState(true);
   const [commentsFor, setCommentsFor] = useState<string | null>(null);
+  const [cycles, setCycles] = useState(1);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const { data, isLoading } = useQuery({
@@ -44,21 +45,39 @@ function FeedPage() {
     queryFn: () => fetchFeed({ data: {} }),
   });
 
-  const posts: FeedPost[] = useMemo(
+  const basePosts: FeedPost[] = useMemo(
     () => (data?.items ?? []) as unknown as FeedPost[],
     [data],
   );
 
+  // Endless feed: repeat the available posts as the user approaches the end.
+  // Each cycle reshuffles so it doesn't feel like the same scroll twice.
+  const posts: FeedPost[] = useMemo(() => {
+    if (basePosts.length === 0) return [];
+    const out: FeedPost[] = [...basePosts];
+    for (let c = 1; c < cycles; c++) {
+      const shuffled = [...basePosts]
+        .map((p) => ({ p, k: Math.sin(c * 9301 + basePosts.indexOf(p) * 49297) }))
+        .sort((a, b) => a.k - b.k)
+        .map((x, i) => ({ ...x.p, id: `${x.p.id}__c${c}_${i}` } as FeedPost));
+      out.push(...shuffled);
+    }
+    return out;
+  }, [basePosts, cycles]);
+
+  // Map cycled IDs back to the original post id for interactions
+  const realId = (id: string) => id.split("__c")[0];
+
   const { data: me } = useQuery({
-    queryKey: ["interactions", user?.id, posts.map((p) => p.id).join(",")],
+    queryKey: ["interactions", user?.id, basePosts.map((p) => p.id).join(",")],
     queryFn: () =>
       fetchInteractions({
         data: {
-          postIds: posts.map((p) => p.id),
-          creatorIds: Array.from(new Set(posts.map((p) => p.creator_id))),
+          postIds: basePosts.map((p) => p.id),
+          creatorIds: Array.from(new Set(basePosts.map((p) => p.creator_id))),
         },
       }),
-    enabled: !!user && posts.length > 0,
+    enabled: !!user && basePosts.length > 0,
   });
 
   const likedIds = new Set(me?.likedPostIds ?? []);
@@ -82,14 +101,21 @@ function FeedPage() {
     return () => obs.disconnect();
   }, [posts]);
 
+  // Append another cycle as the viewer nears the end so the feed never stops.
+  useEffect(() => {
+    if (basePosts.length === 0) return;
+    if (active >= posts.length - 3) setCycles((c) => c + 1);
+  }, [active, posts.length, basePosts.length]);
+
   const onLike = async (post: FeedPost) => {
     if (!user) { navigate({ to: "/login" }); return; }
     try {
-      const res = await like({ data: { postId: post.id } });
-      qc.setQueryData(["interactions", user.id, posts.map((p) => p.id).join(",")], (old: { likedPostIds: string[]; followingIds: string[] } | undefined) => ({
+      const pid = realId(post.id);
+      const res = await like({ data: { postId: pid } });
+      qc.setQueryData(["interactions", user.id, basePosts.map((p) => p.id).join(",")], (old: { likedPostIds: string[]; followingIds: string[] } | undefined) => ({
         likedPostIds: res.liked
-          ? [...(old?.likedPostIds ?? []), post.id]
-          : (old?.likedPostIds ?? []).filter((id) => id !== post.id),
+          ? [...(old?.likedPostIds ?? []), pid]
+          : (old?.likedPostIds ?? []).filter((id) => id !== pid),
         followingIds: old?.followingIds ?? [],
       }));
     } catch (e) { toast.error((e as Error).message); }
@@ -128,13 +154,13 @@ function FeedPage() {
         {posts.map((post, idx) => (
           <div key={post.id} data-feed-item data-idx={idx}>
             <FeedItem
-              post={post}
+              post={{ ...post, id: realId(post.id) }}
               active={idx === active}
-              liked={likedIds.has(post.id)}
+              liked={likedIds.has(realId(post.id))}
               following={post.creator ? followingIds.has(post.creator.id) : false}
               onLike={() => onLike(post)}
               onFollow={() => onFollow(post)}
-              onComment={() => setCommentsFor(post.id)}
+              onComment={() => setCommentsFor(realId(post.id))}
               muted={muted}
               onToggleMute={() => setMuted((m) => !m)}
             />

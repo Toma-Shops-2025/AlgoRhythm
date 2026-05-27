@@ -1,12 +1,14 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { useServerFn } from "@tanstack/react-start";
 import { createPost } from "@/lib/posts.functions";
+import { generateCoverImage } from "@/lib/ai.functions";
+import { audioToVideo, b64ToFile } from "@/lib/audioToVideo";
 import { AppShell } from "@/components/AppShell";
 import { toast } from "sonner";
-import { Music, Film, Image as ImageIcon, Loader2 } from "lucide-react";
+import { Music, Film, Image as ImageIcon, Loader2, Sparkles, Video as VideoIcon } from "lucide-react";
 
 export const Route = createFileRoute("/upload")({
   head: () => ({
@@ -27,6 +29,7 @@ function UploadPage() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
   const post = useServerFn(createPost);
+  const genCover = useServerFn(generateCoverImage);
 
   const [media, setMedia] = useState<File | null>(null);
   const [cover, setCover] = useState<File | null>(null);
@@ -35,6 +38,11 @@ function UploadPage() {
   const [tags, setTags] = useState("");
   const [aiTools, setAiTools] = useState("");
   const [busy, setBusy] = useState(false);
+  const [busyLabel, setBusyLabel] = useState<string>("");
+  const [generating, setGenerating] = useState(false);
+  const [convertToVideo, setConvertToVideo] = useState(false);
+
+  const coverPreview = useMemo(() => (cover ? URL.createObjectURL(cover) : null), [cover]);
 
   if (!loading && !user) {
     navigate({ to: "/login" });
@@ -56,17 +64,47 @@ function UploadPage() {
     return supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl;
   };
 
+  const handleGenerateCover = async () => {
+    const prompt = title.trim() || description.trim() || tags.trim();
+    if (!prompt) { toast.error("Add a title first so the AI knows what to draw"); return; }
+    setGenerating(true);
+    try {
+      const { b64 } = await genCover({ data: { prompt } });
+      const file = b64ToFile(b64, `cover-${Date.now()}.png`, "image/png");
+      setCover(file);
+      toast.success("Cover generated");
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setGenerating(false);
+    }
+  };
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!media || !type) return toast.error("Pick an audio or video file");
-    if (type === "audio" && !cover) return toast.error("Audio posts need a cover image");
+    if (type === "audio" && convertToVideo && !cover) {
+      return toast.error("Converting to video needs a cover image — upload one or generate with AI");
+    }
     setBusy(true);
     try {
-      const mediaUrl = await uploadTo("media", media);
+      let mediaFile: File = media;
+      let postType: "audio" | "video" = type;
+
+      if (type === "audio" && convertToVideo && cover) {
+        setBusyLabel("Rendering your video…");
+        const blob = await audioToVideo(media, cover);
+        mediaFile = new File([blob], `${crypto.randomUUID()}.webm`, { type: "video/webm" });
+        postType = "video";
+      }
+
+      setBusyLabel("Uploading…");
+      const mediaUrl = await uploadTo("media", mediaFile);
       const coverUrl = cover ? await uploadTo("covers", cover) : null;
+      setBusyLabel("Publishing…");
       const { post: row } = await post({
         data: {
-          type,
+          type: postType,
           mediaUrl,
           coverUrl,
           title: title.trim(),
@@ -81,6 +119,7 @@ function UploadPage() {
       toast.error((e as Error).message);
     } finally {
       setBusy(false);
+      setBusyLabel("");
     }
   };
 
@@ -92,11 +131,47 @@ function UploadPage() {
 
         <form onSubmit={submit} className="mt-6 space-y-4">
           <FilePick label="Media (audio or video)" icon={type === "video" ? Film : Music} accept="audio/*,video/*" file={media} onChange={setMedia} />
-          {type === "audio" && (
-            <FilePick label="Cover image" icon={ImageIcon} accept="image/*" file={cover} onChange={setCover} />
+          {(type === "audio" || type === "video") && (
+            <div className="space-y-2">
+              <FilePick
+                label={type === "audio" ? "Cover image (optional)" : "Cover image (optional)"}
+                icon={ImageIcon}
+                accept="image/*"
+                file={cover}
+                onChange={setCover}
+              />
+              {coverPreview && (
+                <img src={coverPreview} alt="" className="h-24 w-24 rounded-md object-cover ring-1 ring-gold/30" />
+              )}
+              <button
+                type="button"
+                disabled={generating}
+                onClick={handleGenerateCover}
+                className="flex w-full items-center justify-center gap-2 rounded-md border border-gold/40 bg-card/40 px-3 py-2 text-xs uppercase tracking-[0.18em] text-gold hover:bg-card disabled:opacity-50"
+              >
+                {generating ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Sparkles className="h-3.5 w-3.5" />}
+                {generating ? "Generating…" : cover ? "Regenerate cover with AI" : "Generate cover with AI"}
+              </button>
+            </div>
           )}
-          {type === "video" && (
-            <FilePick label="Cover image (optional)" icon={ImageIcon} accept="image/*" file={cover} onChange={setCover} />
+
+          {type === "audio" && (
+            <label className="flex cursor-pointer items-start gap-3 rounded-md border border-border bg-card/40 p-3">
+              <input
+                type="checkbox"
+                checked={convertToVideo}
+                onChange={(e) => setConvertToVideo(e.target.checked)}
+                className="mt-1 accent-gold"
+              />
+              <span className="flex-1">
+                <span className="flex items-center gap-2 text-sm">
+                  <VideoIcon className="h-4 w-4 text-gold" /> Turn this into a video
+                </span>
+                <span className="mt-0.5 block text-[11px] text-muted-foreground">
+                  Renders your cover + a reactive visualizer in sync with the audio. Needs a cover image.
+                </span>
+              </span>
+            </label>
           )}
 
           <Field label="Title">
@@ -118,7 +193,7 @@ function UploadPage() {
 
           <button disabled={busy} type="submit"
             className="flex w-full items-center justify-center gap-2 rounded-md bg-gradient-gold px-4 py-3 text-sm font-medium text-primary-foreground shadow-[0_0_24px_-6px_var(--gold)] disabled:opacity-50">
-            {busy && <Loader2 className="h-4 w-4 animate-spin" />} Publish to the feed
+            {busy && <Loader2 className="h-4 w-4 animate-spin" />} {busy && busyLabel ? busyLabel : "Publish to the feed"}
           </button>
         </form>
       </div>
