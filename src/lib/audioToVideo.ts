@@ -378,7 +378,8 @@ export async function audioToLyricVideo(
       const lines = wrapText(ctx, active.text, maxWidth);
       const lineHeight = 56;
       const totalH = lines.length * lineHeight;
-      const cy = H * 0.78 - totalH / 2;
+      // Position lyrics near the top so they don't collide with feed captions/UI
+      const cy = H * 0.12;
       lines.forEach((line, i) => {
         const y = cy + i * lineHeight + lineHeight / 2;
         ctx.shadowColor = "rgba(0,0,0,0.9)";
