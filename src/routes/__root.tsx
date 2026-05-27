@@ -97,8 +97,8 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "description", content: "AI Muse is a platform for AI music and video creators to showcase and discover AI-generated content." },
       { property: "og:description", content: "AI Muse is a platform for AI music and video creators to showcase and discover AI-generated content." },
       { name: "twitter:description", content: "AI Muse is a platform for AI music and video creators to showcase and discover AI-generated content." },
-      { property: "og:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/0mPRG4BkK7OfId3eMGS2cTecW5i2/social-images/social-1779839791241-acaaed00-5810-11f1-99ab-0db2a30831b5.webp" },
-      { name: "twitter:image", content: "https://storage.googleapis.com/gpt-engineer-file-uploads/0mPRG4BkK7OfId3eMGS2cTecW5i2/social-images/social-1779839791241-acaaed00-5810-11f1-99ab-0db2a30831b5.webp" },
+      { property: "og:image", content: "https://myalgorhythm.online/social-card.png" },
+      { name: "twitter:image", content: "https://myalgorhythm.online/social-card.png" },
     ],
     links: [
       {
