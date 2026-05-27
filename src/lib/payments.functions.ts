@@ -165,8 +165,7 @@ export const createTipCheckout = createServerFn({ method: "POST" })
           feeCents: String(fee),
           netCents: String(net),
         },
-        managed_payments: { enabled: true },
-      } as Stripe.Checkout.SessionCreateParams & { managed_payments: { enabled: boolean } });
+      });
       return { clientSecret: session.client_secret ?? "" };
     } catch (error) {
       return { error: getStripeErrorMessage(error) };
