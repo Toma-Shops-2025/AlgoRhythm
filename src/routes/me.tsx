@@ -20,10 +20,10 @@ export const Route = createFileRoute("/me")({
       { property: "og:title", content: "Your profile — AlgoRhythm" },
       { property: "og:description", content: "Manage your creator profile on AlgoRhythm." },
       { property: "og:type", content: "profile" },
-      { property: "og:url", content: "https://myalgorhythm.lovable.app/me" },
+      { property: "og:url", content: "https://myalgorhythm.online/me" },
       { name: "robots", content: "noindex" },
     ],
-    links: [{ rel: "canonical", href: "https://myalgorhythm.lovable.app/me" }],
+    links: [{ rel: "canonical", href: "https://myalgorhythm.online/me" }],
   }),
   component: MePage,
 });

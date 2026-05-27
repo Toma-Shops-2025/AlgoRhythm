@@ -13,9 +13,9 @@ export const Route = createFileRoute("/discover")({
       { name: "description", content: "Discover trending AI-made tracks, music videos, and creators on AlgoRhythm." },
       { property: "og:title", content: "Discover — AlgoRhythm" },
       { property: "og:description", content: "Trending AI music and creators on AlgoRhythm." },
-      { property: "og:url", content: "https://myalgorhythm.lovable.app/discover" },
+      { property: "og:url", content: "https://myalgorhythm.online/discover" },
     ],
-    links: [{ rel: "canonical", href: "https://myalgorhythm.lovable.app/discover" }],
+    links: [{ rel: "canonical", href: "https://myalgorhythm.online/discover" }],
   }),
   component: DiscoverPage,
 });

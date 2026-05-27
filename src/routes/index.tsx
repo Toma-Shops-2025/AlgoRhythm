@@ -6,9 +6,9 @@ import { Sparkles } from "lucide-react";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { property: "og:url", content: "https://myalgorhythm.lovable.app/" },
+      { property: "og:url", content: "https://myalgorhythm.online/" },
     ],
-    links: [{ rel: "canonical", href: "https://myalgorhythm.lovable.app/" }],
+    links: [{ rel: "canonical", href: "https://myalgorhythm.online/" }],
   }),
   component: Index,
 });

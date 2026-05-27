@@ -18,9 +18,9 @@ export const Route = createFileRoute("/feed")({
       { name: "description", content: "The vertical feed for AI-made music and music videos." },
       { property: "og:title", content: "Feed — AlgoRhythm" },
       { property: "og:description", content: "Swipe through AI-made tracks and music videos from creators worldwide." },
-      { property: "og:url", content: "https://myalgorhythm.lovable.app/feed" },
+      { property: "og:url", content: "https://myalgorhythm.online/feed" },
     ],
-    links: [{ rel: "canonical", href: "https://myalgorhythm.lovable.app/feed" }],
+    links: [{ rel: "canonical", href: "https://myalgorhythm.online/feed" }],
   }),
   component: FeedPage,
 });

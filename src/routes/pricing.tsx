@@ -19,7 +19,7 @@ export const Route = createFileRoute("/pricing")({
       { property: "og:title", content: "AlgoRhythm Pro" },
       { property: "og:description", content: "$4.99/mo or $49.99/yr — support the platform and unlock Pro." },
     ],
-    links: [{ rel: "canonical", href: "https://myalgorhythm.lovable.app/pricing" }],
+    links: [{ rel: "canonical", href: "https://myalgorhythm.online/pricing" }],
   }),
   component: PricingPage,
 });

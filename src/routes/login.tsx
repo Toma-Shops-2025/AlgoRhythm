@@ -12,10 +12,10 @@ export const Route = createFileRoute("/login")({
       { name: "description", content: "Sign in to AlgoRhythm to like, comment, follow, and post AI music and videos." },
       { property: "og:title", content: "Sign in — AlgoRhythm" },
       { property: "og:description", content: "Sign in to your AlgoRhythm account." },
-      { property: "og:url", content: "https://myalgorhythm.lovable.app/login" },
+      { property: "og:url", content: "https://myalgorhythm.online/login" },
       { name: "robots", content: "noindex" },
     ],
-    links: [{ rel: "canonical", href: "https://myalgorhythm.lovable.app/login" }],
+    links: [{ rel: "canonical", href: "https://myalgorhythm.online/login" }],
   }),
   component: LoginPage,
 });
