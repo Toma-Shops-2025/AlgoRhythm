@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { useAuth, signOut } from "@/lib/auth";
 import { getMyProfile, updateMyProfile, deletePost, updatePost } from "@/lib/posts.functions";
+import { deleteAccount } from "@/lib/account.functions";
 import { PostGridItem } from "@/components/PostGridItem";
 import {
   Dialog,
@@ -27,7 +28,7 @@ import { createPortalSession } from "@/lib/payments.functions";
 import { getStripeEnvironment } from "@/lib/stripe";
 import { useProSubscription } from "@/hooks/useSubscription";
 import { supabase } from "@/integrations/supabase/client";
-import { LogOut, Settings, Plus, Crown } from "lucide-react";
+import { LogOut, Settings, Plus, Crown, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/me")({
@@ -54,6 +55,7 @@ function MePage() {
   const update = useServerFn(updateMyProfile);
   const removePost = useServerFn(deletePost);
   const editPost = useServerFn(updatePost);
+  const wipeAccount = useServerFn(deleteAccount);
   const portalFn = useServerFn(createPortalSession);
   const { isPro } = useProSubscription();
   const [editing, setEditing] = useState(false);
@@ -63,6 +65,9 @@ function MePage() {
   const [editingPost, setEditingPost] = useState<{ id: string; title: string; description: string; tags: string } | null>(null);
   const [deletingPostId, setDeletingPostId] = useState<string | null>(null);
   const [postBusy, setPostBusy] = useState(false);
+  const [deletingAccount, setDeletingAccount] = useState(false);
+  const [accountBusy, setAccountBusy] = useState(false);
+  const [confirmText, setConfirmText] = useState("");
 
   useEffect(() => { if (!loading && !user) navigate({ to: "/login" }); }, [loading, user, navigate]);
 
@@ -248,6 +253,27 @@ function MePage() {
             <p className="col-span-3 py-8 text-center text-sm text-muted-foreground">No posts yet.</p>
           )}
         </div>
+
+        <div className="mt-10 border-t border-border/60 pt-6 pb-16 space-y-4">
+          <h2 className="text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Legal</h2>
+          <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs text-muted-foreground">
+            <Link to="/privacy" className="hover:text-gold">Privacy Policy</Link>
+            <Link to="/terms" className="hover:text-gold">Terms of Service</Link>
+            <Link to="/dmca" className="hover:text-gold">DMCA & Content Policy</Link>
+            <a href="mailto:contactus@myalgorhythm.online" className="hover:text-gold">Contact</a>
+          </div>
+
+          <h2 className="pt-4 text-[11px] uppercase tracking-[0.2em] text-destructive/80">Danger zone</h2>
+          <button
+            onClick={() => { setConfirmText(""); setDeletingAccount(true); }}
+            className="inline-flex items-center gap-2 rounded-md border border-destructive/50 px-3 py-2 text-xs text-destructive hover:bg-destructive/10"
+          >
+            <Trash2 className="h-3.5 w-3.5" /> Delete my account
+          </button>
+          <p className="text-[11px] text-muted-foreground">
+            Permanently removes your profile, posts, comments, likes, follows, and uploaded files. This can&apos;t be undone.
+          </p>
+        </div>
       </div>
 
       <Dialog open={!!editingPost} onOpenChange={(o) => !o && setEditingPost(null)}>
@@ -319,6 +345,46 @@ function MePage() {
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               {postBusy ? "Deleting…" : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={deletingAccount} onOpenChange={(o) => !o && !accountBusy && setDeletingAccount(false)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Permanently delete your account?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This deletes your profile, all of your posts, comments, likes, follows, and any uploaded media.
+              This action is irreversible. Type <b>DELETE</b> below to confirm.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <input
+            value={confirmText}
+            onChange={(e) => setConfirmText(e.target.value)}
+            placeholder="Type DELETE to confirm"
+            className="mt-2 w-full rounded-md border border-border bg-card px-3 py-2 text-sm outline-none focus:border-destructive/60"
+          />
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={accountBusy}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={accountBusy || confirmText !== "DELETE"}
+              onClick={async (e) => {
+                e.preventDefault();
+                setAccountBusy(true);
+                try {
+                  await wipeAccount({});
+                  await signOut();
+                  toast.success("Your account has been deleted");
+                  navigate({ to: "/" });
+                } catch (err) {
+                  toast.error((err as Error).message);
+                  setAccountBusy(false);
+                }
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {accountBusy ? "Deleting…" : "Delete forever"}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
