@@ -80,6 +80,7 @@ function UploadPage() {
   };
 
   const handleGenerateCover = async () => {
+    if (!isPro) { toast.error("AI cover art is a Pro feature"); navigate({ to: "/pricing" }); return; }
     const prompt = title.trim() || caption.trim() || idea.trim() || tags.trim();
     if (!prompt) { toast.error("Add a title first so the AI knows what to draw"); return; }
     setGenerating(true);
@@ -96,6 +97,7 @@ function UploadPage() {
   };
 
   const handleGenerateMeta = async () => {
+    if (!isPro) { toast.error("AI captions are a Pro feature"); navigate({ to: "/pricing" }); return; }
     const seed = idea.trim() || title.trim() || caption.trim();
     if (!seed) { toast.error("Type a quick idea or title first"); return; }
     setGenMetaLoading(true);
