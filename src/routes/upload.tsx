@@ -128,7 +128,13 @@ function UploadPage() {
           const fd = new FormData();
           fd.append("audio", media);
           // best-effort duration: rely on server to clamp
-          const lyricsRes = await fetch("/api/transcribe-lyrics", { method: "POST", body: fd });
+          const { data: sessData } = await supabase.auth.getSession();
+          const token = sessData.session?.access_token;
+          const lyricsRes = await fetch("/api/transcribe-lyrics", {
+            method: "POST",
+            body: fd,
+            headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+          });
           if (!lyricsRes.ok) {
             const err = await lyricsRes.json().catch(() => ({ error: "Transcription failed" }));
             throw new Error((err as { error?: string }).error ?? "Transcription failed");
