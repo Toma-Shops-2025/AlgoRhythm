@@ -3,7 +3,8 @@ import { z } from "zod";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 export const getFeed = createServerFn({ method: "GET" })
-  .inputValidator((input: { cursor?: string | null; limit?: number } | undefined) =>
+  .inputValidator(
+    (input: { cursor?: string | null; limit?: number; viewerId?: string | null } | undefined) =>
     z
       .object({
         cursor: z.string().nullish(),
