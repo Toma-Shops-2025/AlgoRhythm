@@ -4,6 +4,7 @@ import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { AppShell } from "@/components/AppShell";
 import { getFeed, searchAll } from "@/lib/feed.functions";
+import { useAuth } from "@/lib/auth";
 import { Search } from "lucide-react";
 
 export const Route = createFileRoute("/discover")({
@@ -23,11 +24,12 @@ export const Route = createFileRoute("/discover")({
 function DiscoverPage() {
   const fetchFeed = useServerFn(getFeed);
   const search = useServerFn(searchAll);
+  const { user } = useAuth();
   const [q, setQ] = useState("");
 
   const { data: trending } = useQuery({
-    queryKey: ["trending"],
-    queryFn: () => fetchFeed({ data: { limit: 24 } }),
+    queryKey: ["trending", user?.id ?? null],
+    queryFn: () => fetchFeed({ data: { limit: 24, viewerId: user?.id ?? null } }),
   });
   const { data: results } = useQuery({
     queryKey: ["search", q],
