@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
+import { queryOptions, useSuspenseQuery, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { TipDialog } from "@/components/TipDialog";
@@ -8,7 +8,7 @@ import { CheckoutDialog } from "@/components/CheckoutDialog";
 import { ReportDialog } from "@/components/ReportDialog";
 import { PostGridItem } from "@/components/PostGridItem";
 import { getProfileByHandle } from "@/lib/feed.functions";
-import { toggleFollow } from "@/lib/social.functions";
+import { toggleFollow, getMyInteractions } from "@/lib/social.functions";
 import { toggleBlock } from "@/lib/safety.functions";
 import { createCreatorSubCheckout } from "@/lib/payments.functions";
 import { getStripeEnvironment } from "@/lib/stripe";
@@ -101,6 +101,7 @@ export const Route = createFileRoute("/u/$handle")({
 function ProfilePage() {
   const { handle } = Route.useParams();
   const follow = useServerFn(toggleFollow);
+  const interactionsFn = useServerFn(getMyInteractions);
   const subFn = useServerFn(createCreatorSubCheckout);
   const blockFn = useServerFn(toggleBlock);
   const { user } = useAuth();
@@ -112,11 +113,28 @@ function ProfilePage() {
   const { data, refetch } = useSuspenseQuery(profileQueryOptions(handle));
   const { isSubscribed } = useCreatorSubscription(data?.profile?.id);
 
+  const { data: interactions, refetch: refetchInteractions } = useQuery({
+    queryKey: ["profile-follow", user?.id, data?.profile?.id],
+    queryFn: () =>
+      interactionsFn({ data: { postIds: [], creatorIds: [data!.profile!.id] } }),
+    enabled: !!user && !!data?.profile && user.id !== data.profile.id,
+  });
+  const isFollowing = !!interactions?.followingIds?.includes(data?.profile?.id ?? "");
+  const [followBusy, setFollowBusy] = useState(false);
+
   const onFollow = async () => {
     if (!user) return navigate({ to: "/login" });
     if (!data?.profile) return;
-    try { await follow({ data: { targetUserId: data.profile.id } }); refetch(); }
-    catch (e) { toast.error((e as Error).message); }
+    setFollowBusy(true);
+    try {
+      const res = await follow({ data: { targetUserId: data.profile.id } });
+      toast.success(res.following ? `Following @${data.profile.handle}` : `Unfollowed @${data.profile.handle}`);
+      await Promise.all([refetch(), refetchInteractions()]);
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setFollowBusy(false);
+    }
   };
 
   const onBlock = async () => {
@@ -162,8 +180,16 @@ function ProfilePage() {
             <div className="text-sm text-gold">@{p.handle}</div>
           </div>
           {!isOwner && (
-            <button onClick={onFollow} className="rounded-full bg-gradient-gold px-4 py-2 text-xs uppercase tracking-[0.18em] text-primary-foreground">
-              Follow
+            <button
+              onClick={onFollow}
+              disabled={followBusy}
+              className={
+                isFollowing
+                  ? "rounded-full border border-gold/50 px-4 py-2 text-xs uppercase tracking-[0.18em] text-gold disabled:opacity-60"
+                  : "rounded-full bg-gradient-gold px-4 py-2 text-xs uppercase tracking-[0.18em] text-primary-foreground disabled:opacity-60"
+              }
+            >
+              {isFollowing ? "Following" : "Follow"}
             </button>
           )}
         </div>

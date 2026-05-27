@@ -5,12 +5,12 @@ import { useRef, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { AudioVisualizer } from "@/components/AudioVisualizer";
 import { CommentsSheet } from "@/components/CommentsSheet";
-import { getPostById } from "@/lib/feed.functions";
+import { getPostById, getCreatorPostIds } from "@/lib/feed.functions";
 import { deletePost } from "@/lib/posts.functions";
 import { toggleLike } from "@/lib/social.functions";
 import { useAuth } from "@/lib/auth";
 import { useNavigate } from "@tanstack/react-router";
-import { Heart, MessageCircle, Share2, ArrowRight, Pencil, RefreshCw, CheckCircle2 } from "lucide-react";
+import { Heart, MessageCircle, Share2, ArrowRight, Pencil, RefreshCw, CheckCircle2, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { SITE_URL, SITE_NAME, buildPostTitle, buildPostDescription, absUrl } from "@/lib/seo";
 
@@ -148,6 +148,7 @@ function PostPage() {
   const search = Route.useSearch();
   const like = useServerFn(toggleLike);
   const removePost = useServerFn(deletePost);
+  const siblingsFn = useServerFn(getCreatorPostIds);
   const { user } = useAuth();
   const navigate = useNavigate();
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -162,6 +163,15 @@ function PostPage() {
   const justPosted = search.new === 1 && isOwner;
   const regenCount = search.regen ?? 0;
   const regensLeft = Math.max(0, 2 - regenCount);
+
+  const { data: siblings } = useSuspenseQuery({
+    queryKey: ["creator-post-ids", p.creator_id],
+    queryFn: () => siblingsFn({ data: { creatorId: p.creator_id } }),
+  });
+  const ids = siblings?.ids ?? [];
+  const idx = ids.indexOf(p.id);
+  const prevId = idx > 0 ? ids[idx - 1] : null;
+  const nextId = idx >= 0 && idx < ids.length - 1 ? ids[idx + 1] : null;
 
   const regenerate = async () => {
     if (regensLeft <= 0) return;
@@ -276,6 +286,27 @@ function PostPage() {
             <Share2 className="h-4 w-4" /> Share
           </button>
         </div>
+        {(prevId || nextId) && (
+          <div className="mt-5 flex items-center justify-between gap-2">
+            <button
+              onClick={() => prevId && navigate({ to: "/p/$id", params: { id: prevId } })}
+              disabled={!prevId}
+              className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md border border-border px-3 py-2 text-xs uppercase tracking-[0.15em] text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed"
+            >
+              <ChevronLeft className="h-3.5 w-3.5" /> Newer
+            </button>
+            <span className="text-[10px] uppercase tracking-[0.2em] text-muted-foreground">
+              {idx + 1} / {ids.length}
+            </span>
+            <button
+              onClick={() => nextId && navigate({ to: "/p/$id", params: { id: nextId } })}
+              disabled={!nextId}
+              className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-md border border-border px-3 py-2 text-xs uppercase tracking-[0.15em] text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:cursor-not-allowed"
+            >
+              Older <ChevronRight className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        )}
       </div>
       <CommentsSheet postId={showComments ? p.id : null} open={showComments} onClose={() => setShowComments(false)} />
     </AppShell>

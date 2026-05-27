@@ -95,6 +95,21 @@ export const getProfileByHandle = createServerFn({ method: "GET" })
     return { profile, posts: posts ?? [] };
   });
 
+export const getCreatorPostIds = createServerFn({ method: "GET" })
+  .inputValidator((input: { creatorId: string }) =>
+    z.object({ creatorId: z.string().uuid() }).parse(input),
+  )
+  .handler(async ({ data }) => {
+    const { data: posts } = await supabaseAdmin
+      .from("posts")
+      .select("id")
+      .eq("creator_id", data.creatorId)
+      .eq("is_published", true)
+      .order("created_at", { ascending: false })
+      .limit(200);
+    return { ids: (posts ?? []).map((p) => p.id) };
+  });
+
 export const searchAll = createServerFn({ method: "GET" })
   .inputValidator((input: { q: string }) =>
     z.object({ q: z.string().min(1).max(80) }).parse(input),
