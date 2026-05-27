@@ -23,7 +23,13 @@ export const recordPlayback = createServerFn({ method: "POST" })
       .eq("id", data.postId)
       .maybeSingle();
     if (!row) return { ok: false };
-    const update: Record<string, number> = {};
+    const update: {
+      play_count?: number;
+      view_count?: number;
+      complete_count?: number;
+      loop_count?: number;
+      total_listen_ms?: number;
+    } = {};
     if (data.event === "play") {
       update.play_count = (row.play_count ?? 0) + 1;
       update.view_count = (row.view_count ?? 0) + 1;
