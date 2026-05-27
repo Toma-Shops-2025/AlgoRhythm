@@ -21,6 +21,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as UHandleRouteImport } from './routes/u.$handle'
 import { Route as PIdRouteImport } from './routes/p.$id'
 import { Route as CheckoutReturnRouteImport } from './routes/checkout.return'
+import { Route as ApiTranscribeLyricsRouteImport } from './routes/api/transcribe-lyrics'
 import { Route as ApiPublicPaymentsWebhookRouteImport } from './routes/api/public/payments/webhook'
 
 const UploadRoute = UploadRouteImport.update({
@@ -83,6 +84,11 @@ const CheckoutReturnRoute = CheckoutReturnRouteImport.update({
   path: '/checkout/return',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiTranscribeLyricsRoute = ApiTranscribeLyricsRouteImport.update({
+  id: '/api/transcribe-lyrics',
+  path: '/api/transcribe-lyrics',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPublicPaymentsWebhookRoute =
   ApiPublicPaymentsWebhookRouteImport.update({
     id: '/api/public/payments/webhook',
@@ -100,6 +106,7 @@ export interface FileRoutesByFullPath {
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/upload': typeof UploadRoute
+  '/api/transcribe-lyrics': typeof ApiTranscribeLyricsRoute
   '/checkout/return': typeof CheckoutReturnRoute
   '/p/$id': typeof PIdRoute
   '/u/$handle': typeof UHandleRoute
@@ -115,6 +122,7 @@ export interface FileRoutesByTo {
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/upload': typeof UploadRoute
+  '/api/transcribe-lyrics': typeof ApiTranscribeLyricsRoute
   '/checkout/return': typeof CheckoutReturnRoute
   '/p/$id': typeof PIdRoute
   '/u/$handle': typeof UHandleRoute
@@ -131,6 +139,7 @@ export interface FileRoutesById {
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/upload': typeof UploadRoute
+  '/api/transcribe-lyrics': typeof ApiTranscribeLyricsRoute
   '/checkout/return': typeof CheckoutReturnRoute
   '/p/$id': typeof PIdRoute
   '/u/$handle': typeof UHandleRoute
@@ -148,6 +157,7 @@ export interface FileRouteTypes {
     | '/signup'
     | '/sitemap.xml'
     | '/upload'
+    | '/api/transcribe-lyrics'
     | '/checkout/return'
     | '/p/$id'
     | '/u/$handle'
@@ -163,6 +173,7 @@ export interface FileRouteTypes {
     | '/signup'
     | '/sitemap.xml'
     | '/upload'
+    | '/api/transcribe-lyrics'
     | '/checkout/return'
     | '/p/$id'
     | '/u/$handle'
@@ -178,6 +189,7 @@ export interface FileRouteTypes {
     | '/signup'
     | '/sitemap.xml'
     | '/upload'
+    | '/api/transcribe-lyrics'
     | '/checkout/return'
     | '/p/$id'
     | '/u/$handle'
@@ -194,6 +206,7 @@ export interface RootRouteChildren {
   SignupRoute: typeof SignupRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   UploadRoute: typeof UploadRoute
+  ApiTranscribeLyricsRoute: typeof ApiTranscribeLyricsRoute
   CheckoutReturnRoute: typeof CheckoutReturnRoute
   PIdRoute: typeof PIdRoute
   UHandleRoute: typeof UHandleRoute
@@ -286,6 +299,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CheckoutReturnRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/transcribe-lyrics': {
+      id: '/api/transcribe-lyrics'
+      path: '/api/transcribe-lyrics'
+      fullPath: '/api/transcribe-lyrics'
+      preLoaderRoute: typeof ApiTranscribeLyricsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/public/payments/webhook': {
       id: '/api/public/payments/webhook'
       path: '/api/public/payments/webhook'
@@ -306,6 +326,7 @@ const rootRouteChildren: RootRouteChildren = {
   SignupRoute: SignupRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   UploadRoute: UploadRoute,
+  ApiTranscribeLyricsRoute: ApiTranscribeLyricsRoute,
   CheckoutReturnRoute: CheckoutReturnRoute,
   PIdRoute: PIdRoute,
   UHandleRoute: UHandleRoute,
@@ -314,3 +335,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
