@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
-import { Heart, MessageCircle, Share2, Play, Volume2, VolumeX, Gift, MoreVertical } from "lucide-react";
+import { Heart, MessageCircle, Share2, Play, Volume2, VolumeX, Gift, MoreVertical, Bookmark } from "lucide-react";
 import { AudioVisualizer } from "./AudioVisualizer";
 import { Watermark } from "./Logo";
 import { TipDialog } from "./TipDialog";
@@ -15,6 +15,8 @@ import { useAuth } from "@/lib/auth";
 import { useNavigate } from "@tanstack/react-router";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { useServerFn } from "@tanstack/react-start";
+import { recordPlayback } from "@/lib/playback.functions";
 
 export type FeedPost = {
   id: string;
@@ -27,6 +29,7 @@ export type FeedPost = {
   tags: string[];
   like_count: number;
   comment_count: number;
+  save_count?: number;
   creator: {
     id: string;
     handle: string;
@@ -40,9 +43,11 @@ export function FeedItem({
   active,
   liked,
   following,
+  saved,
   onLike,
   onFollow,
   onComment,
+  onSave,
   muted,
   onToggleMute,
 }: {
@@ -50,9 +55,11 @@ export function FeedItem({
   active: boolean;
   liked: boolean;
   following: boolean;
+  saved: boolean;
   onLike: () => void;
   onFollow: () => void;
   onComment: () => void;
+  onSave: () => void;
   muted: boolean;
   onToggleMute: () => void;
 }) {
@@ -64,6 +71,11 @@ export function FeedItem({
   const [reportUserOpen, setReportUserOpen] = useState(false);
   const { user } = useAuth();
   const navigate = useNavigate();
+  const track = useServerFn(recordPlayback);
+  const playStartRef = useRef<number | null>(null);
+  const reportedPlayRef = useRef(false);
+  const reportedCompleteRef = useRef(false);
+  const loopsRef = useRef(0);
 
   useEffect(() => {
     const el = post.type === "video" ? videoRef.current : audioRef.current;
@@ -71,12 +83,63 @@ export function FeedItem({
     if (active) {
       el.currentTime = 0;
       el.muted = muted;
+      reportedPlayRef.current = false;
+      reportedCompleteRef.current = false;
+      loopsRef.current = 0;
+      playStartRef.current = Date.now();
       el.play().then(() => setPlaying(true)).catch(() => setPlaying(false));
     } else {
+      // Flush accumulated listen time when leaving the item
+      if (playStartRef.current && reportedPlayRef.current) {
+        const listenedMs = Date.now() - playStartRef.current;
+        if (listenedMs > 1500) {
+          track({ data: { postId: post.id, event: "play", listenedMs } }).catch(() => {});
+        }
+        playStartRef.current = null;
+      }
       el.pause();
       setPlaying(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active, post.type, muted]);
+
+  // Fire "play" once after 2s of active listening, then "complete"/"loop" as they happen.
+  useEffect(() => {
+    const el = post.type === "video" ? videoRef.current : audioRef.current;
+    if (!el) return;
+    const onTime = () => {
+      if (!active) return;
+      if (!reportedPlayRef.current && el.currentTime >= 2) {
+        reportedPlayRef.current = true;
+        track({ data: { postId: post.id, event: "play" } }).catch(() => {});
+      }
+      if (
+        !reportedCompleteRef.current &&
+        el.duration > 0 &&
+        el.currentTime / el.duration >= 0.9
+      ) {
+        reportedCompleteRef.current = true;
+        track({ data: { postId: post.id, event: "complete" } }).catch(() => {});
+      }
+    };
+    const onSeekedToStart = () => {
+      // Loop event: a loop=true element resets to ~0 when it wraps around.
+      if (!active) return;
+      if (el.currentTime < 0.5 && reportedCompleteRef.current) {
+        loopsRef.current += 1;
+        if (loopsRef.current <= 5) {
+          track({ data: { postId: post.id, event: "loop" } }).catch(() => {});
+        }
+        reportedCompleteRef.current = false;
+      }
+    };
+    el.addEventListener("timeupdate", onTime);
+    el.addEventListener("seeking", onSeekedToStart);
+    return () => {
+      el.removeEventListener("timeupdate", onTime);
+      el.removeEventListener("seeking", onSeekedToStart);
+    };
+  }, [active, post.id, post.type, track]);
 
   const togglePlay = () => {
     const el = post.type === "video" ? videoRef.current : audioRef.current;
@@ -158,6 +221,14 @@ export function FeedItem({
         </ActionButton>
         <ActionButton onClick={onComment} count={post.comment_count}>
           <MessageCircle className="h-7 w-7" />
+        </ActionButton>
+        <ActionButton
+          ariaLabel={saved ? "Remove from library" : "Save to library"}
+          onClick={onSave}
+          count={(post.save_count ?? 0) + (saved ? 1 : 0)}
+          active={saved}
+        >
+          <Bookmark className={cn("h-7 w-7", saved && "fill-current text-gold")} />
         </ActionButton>
         {post.creator && user?.id !== post.creator.id && (
           <ActionButton
