@@ -152,7 +152,7 @@ function UploadPage() {
           <FilePick
             label="Media (audio or video)"
             icon={type === "video" ? Film : Music}
-            accept="audio/*,video/*,.mp3,.m4a,.aac,.wav,.flac,.ogg,.oga,.opus,.aiff,.aif,.wma,.mp4,.mov,.m4v,.webm,.mkv,.avi"
+            accept="*/*"
             file={media}
             onChange={setMedia}
           />
