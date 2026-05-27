@@ -7,6 +7,10 @@ import { getFeed, searchAll } from "@/lib/feed.functions";
 import { useAuth } from "@/lib/auth";
 import { Search, Play } from "lucide-react";
 import bgLoop from "@/assets/bg-loop.mp4.asset.json";
+import { cn } from "@/lib/utils";
+
+const MOOD_TAGS = ["chill", "hype", "lofi", "trap", "ambient", "synthwave", "drill", "pop", "rnb", "house"] as const;
+const AI_TOOLS = ["suno", "udio", "riffusion", "stable-audio", "soundraw", "boomy"] as const;
 
 export const Route = createFileRoute("/discover")({
   head: () => ({
@@ -27,10 +31,12 @@ function DiscoverPage() {
   const search = useServerFn(searchAll);
   const { user } = useAuth();
   const [q, setQ] = useState("");
+  const [tag, setTag] = useState<string | null>(null);
+  const [aiTool, setAiTool] = useState<string | null>(null);
 
   const { data: trending } = useQuery({
-    queryKey: ["trending", user?.id ?? null],
-    queryFn: () => fetchFeed({ data: { limit: 24, viewerId: user?.id ?? null } }),
+    queryKey: ["trending", user?.id ?? null, tag, aiTool],
+    queryFn: () => fetchFeed({ data: { limit: 24, viewerId: user?.id ?? null, tag, aiTool } }),
   });
   const { data: results } = useQuery({
     queryKey: ["search", q],
@@ -73,12 +79,57 @@ function DiscoverPage() {
           </section>
         ) : (
           <section className="mt-6">
-            <h2 className="mb-2 text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Trending</h2>
+            <div className="space-y-3">
+              <div>
+                <div className="mb-1.5 text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Mood</div>
+                <FilterChips options={MOOD_TAGS} value={tag} onChange={setTag} />
+              </div>
+              <div>
+                <div className="mb-1.5 text-[10px] uppercase tracking-[0.2em] text-muted-foreground">AI Tool</div>
+                <FilterChips options={AI_TOOLS} value={aiTool} onChange={setAiTool} />
+              </div>
+            </div>
+            <h2 className="mb-2 mt-5 text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+              {tag || aiTool ? "Filtered" : "Trending"}
+            </h2>
             <PostGrid posts={trending?.items ?? []} />
           </section>
         )}
       </div>
     </AppShell>
+  );
+}
+
+function FilterChips({
+  options,
+  value,
+  onChange,
+}: {
+  options: readonly string[];
+  value: string | null;
+  onChange: (v: string | null) => void;
+}) {
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {options.map((o) => {
+        const active = value === o;
+        return (
+          <button
+            key={o}
+            type="button"
+            onClick={() => onChange(active ? null : o)}
+            className={cn(
+              "rounded-full border px-2.5 py-1 text-[11px] uppercase tracking-wide transition",
+              active
+                ? "border-gold/60 bg-gold/15 text-gold"
+                : "border-border bg-card/70 text-muted-foreground hover:text-foreground",
+            )}
+          >
+            {o}
+          </button>
+        );
+      })}
+    </div>
   );
 }
 
