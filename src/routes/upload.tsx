@@ -11,6 +11,11 @@ import { toast } from "sonner";
 import { Music, Film, Image as ImageIcon, Loader2, Sparkles, Video as VideoIcon, Type } from "lucide-react";
 
 export const Route = createFileRoute("/upload")({
+  validateSearch: (search: Record<string, unknown>) => {
+    const r = Number(search.regen);
+    const regen = Number.isFinite(r) ? Math.min(Math.max(Math.trunc(r), 0), 2) : 0;
+    return { regen: regen || undefined } as { regen?: number };
+  },
   head: () => ({
     meta: [
       { title: "Post — AlgoRhythm" },
@@ -28,6 +33,8 @@ export const Route = createFileRoute("/upload")({
 function UploadPage() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
+  const search = Route.useSearch();
+  const regenCount = search.regen ?? 0;
   const post = useServerFn(createPost);
   const genCover = useServerFn(generateCoverImage);
   const genMeta = useServerFn(generatePostMetadata);
@@ -187,7 +194,11 @@ function UploadPage() {
         },
       });
       toast.success("Posted");
-      navigate({ to: "/p/$id", params: { id: row.id }, search: { new: 1 } });
+      navigate({
+        to: "/p/$id",
+        params: { id: row.id },
+        search: { new: 1, regen: regenCount || undefined },
+      });
     } catch (e) {
       toast.error((e as Error).message);
     } finally {
