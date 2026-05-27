@@ -228,21 +228,23 @@ function PostPage() {
               >
                 <Pencil className="h-3.5 w-3.5" /> Back to edit
               </button>
-              <button
-                onClick={regenerate}
-                disabled={regenBusy || regensLeft <= 0}
-                title={regensLeft <= 0 ? "No regenerations left" : `${regensLeft} regeneration${regensLeft === 1 ? "" : "s"} left`}
-                className="inline-flex items-center justify-center gap-2 rounded-md border border-border bg-card/40 px-3 py-2 text-xs uppercase tracking-[0.15em] text-foreground hover:bg-card disabled:opacity-40 disabled:cursor-not-allowed"
-              >
-                <RefreshCw className={`h-3.5 w-3.5 ${regenBusy ? "animate-spin" : ""}`} />{" "}
-                {regenBusy
-                  ? "Removing…"
-                  : regensLeft <= 0
-                    ? "No regens left"
-                    : `Regenerate (${regensLeft} left)`}
-              </button>
+              {p.type !== "video" && (
+                <button
+                  onClick={regenerate}
+                  disabled={regenBusy || regensLeft <= 0}
+                  title={regensLeft <= 0 ? "No regenerations left" : `${regensLeft} regeneration${regensLeft === 1 ? "" : "s"} left`}
+                  className="inline-flex items-center justify-center gap-2 rounded-md border border-border bg-card/40 px-3 py-2 text-xs uppercase tracking-[0.15em] text-foreground hover:bg-card disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <RefreshCw className={`h-3.5 w-3.5 ${regenBusy ? "animate-spin" : ""}`} />{" "}
+                  {regenBusy
+                    ? "Removing…"
+                    : regensLeft <= 0
+                      ? "No regens left"
+                      : `Regenerate (${regensLeft} left)`}
+                </button>
+              )}
             </div>
-            {regensLeft <= 0 && (
+            {p.type !== "video" && regensLeft <= 0 && (
               <p className="mt-2 text-[10px] text-muted-foreground">
                 You've used all 2 regenerations for this attempt. Continue to feed or edit instead.
               </p>
