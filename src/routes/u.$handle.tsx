@@ -1,10 +1,11 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { TipDialog } from "@/components/TipDialog";
 import { CheckoutDialog } from "@/components/CheckoutDialog";
+import { PostGridItem } from "@/components/PostGridItem";
 import { getProfileByHandle } from "@/lib/feed.functions";
 import { toggleFollow } from "@/lib/social.functions";
 import { createCreatorSubCheckout } from "@/lib/payments.functions";
@@ -179,16 +180,7 @@ function ProfilePage() {
 
         <div className="mt-6 grid grid-cols-3 gap-1.5 pb-12">
           {data.posts.map((post) => (
-            <Link key={post.id} to="/p/$id" params={{ id: post.id }} className="relative aspect-[3/4] overflow-hidden rounded-md bg-card">
-              {post.cover_url ? (
-                <img src={post.cover_url} className="absolute inset-0 h-full w-full object-cover" alt={post.title} />
-              ) : (
-                <div className="absolute inset-0 bg-gradient-to-br from-card to-background" />
-              )}
-              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-1.5">
-                <div className="line-clamp-2 text-[10px] text-white">{post.title}</div>
-              </div>
-            </Link>
+            <PostGridItem key={post.id} post={post} />
           ))}
           {data.posts.length === 0 && (
             <p className="col-span-3 py-8 text-center text-sm text-muted-foreground">No posts yet.</p>

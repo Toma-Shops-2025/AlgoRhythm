@@ -87,6 +87,33 @@ export const deletePost = createServerFn({ method: "POST" })
     return { ok: true };
   });
 
+export const updatePost = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(
+    (input: { id: string; title?: string; description?: string; tags?: string[] }) =>
+      z
+        .object({
+          id: z.string().uuid(),
+          title: z.string().min(1).max(140).optional(),
+          description: z.string().max(2000).optional(),
+          tags: z.array(z.string().min(1).max(40)).max(12).optional(),
+        })
+        .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { supabase, userId } = context;
+    const { id, ...patch } = data;
+    const { data: row, error } = await supabase
+      .from("posts")
+      .update(patch)
+      .eq("id", id)
+      .eq("creator_id", userId)
+      .select("*")
+      .single();
+    if (error) throw new Error(error.message);
+    return { post: row };
+  });
+
 export const getMyProfile = createServerFn({ method: "GET" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
@@ -95,7 +122,7 @@ export const getMyProfile = createServerFn({ method: "GET" })
       supabase.from("profiles").select("*").eq("id", userId).maybeSingle(),
       supabase
         .from("posts")
-        .select("id, type, cover_url, title, like_count, view_count, created_at")
+        .select("id, type, cover_url, media_url, title, description, tags, like_count, view_count, created_at")
         .eq("creator_id", userId)
         .order("created_at", { ascending: false }),
     ]);

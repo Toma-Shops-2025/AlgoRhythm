@@ -4,7 +4,25 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { useAuth, signOut } from "@/lib/auth";
-import { getMyProfile, updateMyProfile } from "@/lib/posts.functions";
+import { getMyProfile, updateMyProfile, deletePost, updatePost } from "@/lib/posts.functions";
+import { PostGridItem } from "@/components/PostGridItem";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { createPortalSession } from "@/lib/payments.functions";
 import { getStripeEnvironment } from "@/lib/stripe";
 import { useProSubscription } from "@/hooks/useSubscription";
@@ -34,12 +52,17 @@ function MePage() {
   const qc = useQueryClient();
   const fetchMe = useServerFn(getMyProfile);
   const update = useServerFn(updateMyProfile);
+  const removePost = useServerFn(deletePost);
+  const editPost = useServerFn(updatePost);
   const portalFn = useServerFn(createPortalSession);
   const { isPro } = useProSubscription();
   const [editing, setEditing] = useState(false);
   const [displayName, setDisplayName] = useState("");
   const [bio, setBio] = useState("");
   const [busy, setBusy] = useState(false);
+  const [editingPost, setEditingPost] = useState<{ id: string; title: string; description: string; tags: string } | null>(null);
+  const [deletingPostId, setDeletingPostId] = useState<string | null>(null);
+  const [postBusy, setPostBusy] = useState(false);
 
   useEffect(() => { if (!loading && !user) navigate({ to: "/login" }); }, [loading, user, navigate]);
 
@@ -82,6 +105,49 @@ function MePage() {
     });
     if ("error" in res) return toast.error(res.error);
     window.open(res.url, "_blank");
+  };
+
+  const savePostEdit = async () => {
+    if (!editingPost) return;
+    setPostBusy(true);
+    try {
+      const tagList = editingPost.tags
+        .split(/[,\s]+/)
+        .map((t) => t.replace(/^#/, "").trim().toLowerCase())
+        .filter(Boolean)
+        .slice(0, 12);
+      await editPost({
+        data: {
+          id: editingPost.id,
+          title: editingPost.title.trim(),
+          description: editingPost.description,
+          tags: tagList,
+        },
+      });
+      qc.invalidateQueries({ queryKey: ["me"] });
+      qc.invalidateQueries({ queryKey: ["post", editingPost.id] });
+      setEditingPost(null);
+      toast.success("Post updated");
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setPostBusy(false);
+    }
+  };
+
+  const confirmDelete = async () => {
+    if (!deletingPostId) return;
+    setPostBusy(true);
+    try {
+      await removePost({ data: { id: deletingPostId } });
+      qc.invalidateQueries({ queryKey: ["me"] });
+      setDeletingPostId(null);
+      toast.success("Post deleted");
+    } catch (e) {
+      toast.error((e as Error).message);
+    } finally {
+      setPostBusy(false);
+    }
   };
 
   if (!data?.profile) return <AppShell><div className="grid h-dvh place-items-center text-sm text-muted-foreground">Loading…</div></AppShell>;
@@ -163,22 +229,100 @@ function MePage() {
         </div>
         <div className="mt-3 grid grid-cols-3 gap-1.5 pb-12">
           {data.posts.map((post) => (
-            <Link key={post.id} to="/p/$id" params={{ id: post.id }} className="relative aspect-[3/4] overflow-hidden rounded-md bg-card">
-              {post.cover_url ? (
-                <img src={post.cover_url} className="absolute inset-0 h-full w-full object-cover" alt={post.title} />
-              ) : (
-                <div className="absolute inset-0 bg-gradient-to-br from-card to-background" />
-              )}
-              <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-1.5">
-                <div className="line-clamp-2 text-[10px] text-white">{post.title}</div>
-              </div>
-            </Link>
+            <PostGridItem
+              key={post.id}
+              post={post}
+              isOwner
+              onEdit={(pp) =>
+                setEditingPost({
+                  id: pp.id,
+                  title: pp.title,
+                  description: (post.description as string | null) ?? "",
+                  tags: ((post.tags as string[] | null) ?? []).map((t) => `#${t}`).join(" "),
+                })
+              }
+              onDelete={(pp) => setDeletingPostId(pp.id)}
+            />
           ))}
           {data.posts.length === 0 && (
             <p className="col-span-3 py-8 text-center text-sm text-muted-foreground">No posts yet.</p>
           )}
         </div>
       </div>
+
+      <Dialog open={!!editingPost} onOpenChange={(o) => !o && setEditingPost(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit post</DialogTitle>
+          </DialogHeader>
+          {editingPost && (
+            <div className="space-y-3">
+              <div>
+                <label className="mb-1 block text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Title</label>
+                <input
+                  value={editingPost.title}
+                  onChange={(e) => setEditingPost({ ...editingPost, title: e.target.value })}
+                  className="w-full rounded-md border border-border bg-card px-3 py-2 text-sm outline-none focus:border-gold/50"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Caption</label>
+                <textarea
+                  rows={3}
+                  value={editingPost.description}
+                  onChange={(e) => setEditingPost({ ...editingPost, description: e.target.value })}
+                  className="w-full rounded-md border border-border bg-card px-3 py-2 text-sm outline-none focus:border-gold/50"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Tags</label>
+                <input
+                  value={editingPost.tags}
+                  onChange={(e) => setEditingPost({ ...editingPost, tags: e.target.value })}
+                  placeholder="#chill #lofi"
+                  className="w-full rounded-md border border-border bg-card px-3 py-2 text-sm outline-none focus:border-gold/50"
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <button
+              onClick={() => setEditingPost(null)}
+              className="rounded-md border border-border px-3 py-2 text-sm"
+            >
+              Cancel
+            </button>
+            <button
+              disabled={postBusy}
+              onClick={savePostEdit}
+              className="rounded-md bg-gradient-gold px-3 py-2 text-sm text-primary-foreground disabled:opacity-60"
+            >
+              {postBusy ? "Saving…" : "Save"}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <AlertDialog open={!!deletingPostId} onOpenChange={(o) => !o && setDeletingPostId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this post?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This permanently removes the post from your profile and the feed. This can't be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={postBusy}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              disabled={postBusy}
+              onClick={confirmDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {postBusy ? "Deleting…" : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </AppShell>
   );
 }
