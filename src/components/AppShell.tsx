@@ -19,8 +19,8 @@ const items: NavItem[] = [
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   return (
-    <div className="relative min-h-dvh bg-background text-foreground">
-      <main className="pb-20">{children}</main>
+    <div className="relative min-h-dvh text-foreground">
+      <main className="relative z-10 pb-20">{children}</main>
       <Footer />
       <BottomNav />
     </div>
