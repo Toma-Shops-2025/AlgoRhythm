@@ -24,7 +24,7 @@ function Index() {
         muted
         playsInline
         aria-hidden
-        className="pointer-events-none fixed inset-0 -z-10 h-full w-full object-cover opacity-50"
+        className="pointer-events-none fixed inset-0 z-0 h-full w-full object-cover opacity-50"
       />
       <header className="flex items-center justify-between px-5 pt-6">
         <Wordmark />

@@ -91,7 +91,7 @@ function BackgroundVideo() {
       muted
       playsInline
       aria-hidden
-      className="pointer-events-none fixed inset-0 -z-10 h-full w-full object-cover opacity-50"
+      className="pointer-events-none fixed inset-0 z-0 h-full w-full object-cover opacity-50"
     />
   );
 }
