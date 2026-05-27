@@ -21,9 +21,14 @@ const postQueryOptions = (id: string) =>
   });
 
 export const Route = createFileRoute("/p/$id")({
-  validateSearch: (search: Record<string, unknown>) => ({
-    new: search.new === "1" || search.new === 1 ? 1 : undefined,
-  }),
+  validateSearch: (search: Record<string, unknown>) => {
+    const regenRaw = Number(search.regen);
+    const regen = Number.isFinite(regenRaw) ? Math.min(Math.max(Math.trunc(regenRaw), 0), 2) : 0;
+    return {
+      new: search.new === "1" || search.new === 1 ? 1 : undefined,
+      regen: regen || undefined,
+    } as { new?: 1; regen?: number };
+  },
   loader: ({ context, params }) =>
     context.queryClient.ensureQueryData(postQueryOptions(params.id)),
   head: ({ params, loaderData }) => {
@@ -155,13 +160,16 @@ function PostPage() {
   const p = data.post;
   const isOwner = !!user && user.id === p.creator_id;
   const justPosted = search.new === 1 && isOwner;
+  const regenCount = search.regen ?? 0;
+  const regensLeft = Math.max(0, 2 - regenCount);
 
   const regenerate = async () => {
+    if (regensLeft <= 0) return;
     if (!confirm("Delete this post and start over?")) return;
     setRegenBusy(true);
     try {
       await removePost({ data: { id: p.id } });
-      navigate({ to: "/upload" });
+      navigate({ to: "/upload", search: { regen: regenCount + 1 } });
     } catch (e) {
       toast.error((e as Error).message);
       setRegenBusy(false);
@@ -222,12 +230,23 @@ function PostPage() {
               </button>
               <button
                 onClick={regenerate}
-                disabled={regenBusy}
-                className="inline-flex items-center justify-center gap-2 rounded-md border border-border bg-card/40 px-3 py-2 text-xs uppercase tracking-[0.15em] text-foreground hover:bg-card disabled:opacity-50"
+                disabled={regenBusy || regensLeft <= 0}
+                title={regensLeft <= 0 ? "No regenerations left" : `${regensLeft} regeneration${regensLeft === 1 ? "" : "s"} left`}
+                className="inline-flex items-center justify-center gap-2 rounded-md border border-border bg-card/40 px-3 py-2 text-xs uppercase tracking-[0.15em] text-foreground hover:bg-card disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                <RefreshCw className={`h-3.5 w-3.5 ${regenBusy ? "animate-spin" : ""}`} /> {regenBusy ? "Removing…" : "Regenerate"}
+                <RefreshCw className={`h-3.5 w-3.5 ${regenBusy ? "animate-spin" : ""}`} />{" "}
+                {regenBusy
+                  ? "Removing…"
+                  : regensLeft <= 0
+                    ? "No regens left"
+                    : `Regenerate (${regensLeft} left)`}
               </button>
             </div>
+            {regensLeft <= 0 && (
+              <p className="mt-2 text-[10px] text-muted-foreground">
+                You've used all 2 regenerations for this attempt. Continue to feed or edit instead.
+              </p>
+            )}
           </div>
         )}
         <h1 className="text-xl tracking-tight">{p.title}</h1>
