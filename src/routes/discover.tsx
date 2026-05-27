@@ -84,6 +84,7 @@ function DiscoverPage() {
 
 function BackgroundVideo() {
   return (
+    <>
     <video
       src={bgLoop.url}
       autoPlay
@@ -91,8 +92,10 @@ function BackgroundVideo() {
       muted
       playsInline
       aria-hidden
-      className="pointer-events-none fixed inset-0 z-0 h-full w-full object-cover opacity-50"
+      className="pointer-events-none fixed inset-0 z-0 h-full w-full object-cover opacity-20"
     />
+    <div aria-hidden className="pointer-events-none fixed inset-0 z-0 bg-background/60" />
+    </>
   );
 }
 
