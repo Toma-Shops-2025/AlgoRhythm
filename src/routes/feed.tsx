@@ -39,16 +39,29 @@ function FeedPage() {
   const [commentsFor, setCommentsFor] = useState<string | null>(null);
   const [cycles, setCycles] = useState(1);
   const containerRef = useRef<HTMLDivElement>(null);
+  // Shuffle seed regenerated on every visit so the order changes each time.
+  const [shuffleSeed] = useState(() => Math.random());
 
   const { data, isLoading } = useQuery({
     queryKey: ["feed", user?.id ?? null],
     queryFn: () => fetchFeed({ data: { viewerId: user?.id ?? null } }),
   });
 
-  const basePosts: FeedPost[] = useMemo(
-    () => (data?.items ?? []) as unknown as FeedPost[],
-    [data],
-  );
+  const basePosts: FeedPost[] = useMemo(() => {
+    const items = (data?.items ?? []) as unknown as FeedPost[];
+    // Fisher–Yates shuffle, seeded so it's stable across re-renders in the same visit.
+    let s = Math.floor(shuffleSeed * 1_000_000) + 1;
+    const rand = () => {
+      s = (s * 9301 + 49297) % 233280;
+      return s / 233280;
+    };
+    const out = [...items];
+    for (let i = out.length - 1; i > 0; i--) {
+      const j = Math.floor(rand() * (i + 1));
+      [out[i], out[j]] = [out[j], out[i]];
+    }
+    return out;
+  }, [data, shuffleSeed]);
 
   // Endless feed: repeat the available posts as the user approaches the end.
   // Each cycle reshuffles so it doesn't feel like the same scroll twice.
