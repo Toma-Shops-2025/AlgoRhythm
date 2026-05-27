@@ -60,7 +60,7 @@ export function CommentsSheet({ postId, open, onClose }: { postId: string | null
             ))}
           </ul>
         </div>
-        <form onSubmit={submit} className="flex items-center gap-2 border-t border-border p-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+        <form onSubmit={submit} className="flex items-center gap-2 border-t border-border p-3 pb-[max(5rem,calc(env(safe-area-inset-bottom)+5rem))]">
           <input value={body} onChange={(e) => setBody(e.target.value)} placeholder={user ? "Add a comment…" : "Sign in to comment"}
             disabled={!user}
             className="flex-1 rounded-full border border-border bg-background px-4 py-2 text-sm outline-none focus:border-gold/50 disabled:opacity-60" />
