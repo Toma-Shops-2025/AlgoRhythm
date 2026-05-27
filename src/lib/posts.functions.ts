@@ -41,6 +41,19 @@ export const createPost = createServerFn({ method: "POST" })
   )
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
+    // SEO safety net: ensure every post ships with a usable description for
+    // social cards & search snippets even if the creator left the caption blank.
+    let description = data.description?.trim() || null;
+    if (!description) {
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("handle, display_name")
+        .eq("id", userId)
+        .maybeSingle();
+      const who = profile?.handle ? `@${profile.handle}` : "an independent creator";
+      const tagStr = (data.tags ?? []).slice(0, 5).map((t) => `#${t}`).join(" ");
+      description = `AI-made ${data.type} "${data.title}" by ${who} on AlgoRhythm.${tagStr ? ` ${tagStr}` : ""}`.slice(0, 280);
+    }
     const { data: post, error } = await supabase
       .from("posts")
       .insert({
@@ -49,7 +62,7 @@ export const createPost = createServerFn({ method: "POST" })
         media_url: data.mediaUrl,
         cover_url: data.coverUrl ?? null,
         title: data.title,
-        description: data.description ?? null,
+        description,
         tags: data.tags ?? [],
         ai_tools: data.aiTools ?? [],
         duration_seconds: data.durationSeconds ?? null,
