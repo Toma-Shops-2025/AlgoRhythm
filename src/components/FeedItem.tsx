@@ -103,8 +103,6 @@ export function FeedItem({
 
   return (
     <section className="relative h-dvh w-full snap-start overflow-hidden bg-black">
-      <button onClick={togglePlay} className="absolute inset-0 z-10" aria-label="Toggle play" />
-
       {post.type === "video" ? (
         <video
           ref={videoRef}
@@ -120,6 +118,14 @@ export function FeedItem({
           <AudioVisualizer audio={audioRef.current} playing={playing && active} coverUrl={post.cover_url} />
         </>
       )}
+
+      {/* tap-to-toggle-play overlay (kept below all controls) */}
+      <button
+        type="button"
+        onClick={togglePlay}
+        className="absolute inset-0 z-10"
+        aria-label="Toggle play"
+      />
 
       {/* dark gradient for legibility */}
       <div className="pointer-events-none absolute inset-x-0 bottom-0 z-10 h-2/3 bg-gradient-to-t from-black via-black/70 to-transparent" />
@@ -146,7 +152,7 @@ export function FeedItem({
       </button>
 
       {/* right action rail */}
-      <div className="absolute bottom-28 right-3 z-20 flex flex-col items-center gap-5 text-white">
+      <div className="pointer-events-auto absolute bottom-28 right-3 z-30 flex flex-col items-center gap-5 text-white">
         <ActionButton onClick={onLike} count={post.like_count + (liked ? 1 : 0)} active={liked}>
           <Heart className={cn("h-7 w-7", liked && "fill-current text-rose-400")} />
         </ActionButton>
@@ -171,8 +177,8 @@ export function FeedItem({
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
+                type="button"
                 aria-label="More options"
-                onClick={(e) => e.stopPropagation()}
                 className="flex flex-col items-center gap-1"
               >
                 <span className="grid h-12 w-12 place-items-center rounded-full bg-black/35 backdrop-blur">
