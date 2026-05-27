@@ -187,7 +187,7 @@ function UploadPage() {
         },
       });
       toast.success("Posted");
-      navigate({ to: "/p/$id", params: { id: row.id } });
+      navigate({ to: "/p/$id", params: { id: row.id }, search: { new: 1 } });
     } catch (e) {
       toast.error((e as Error).message);
     } finally {

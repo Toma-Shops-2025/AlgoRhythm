@@ -6,10 +6,11 @@ import { AppShell } from "@/components/AppShell";
 import { AudioVisualizer } from "@/components/AudioVisualizer";
 import { CommentsSheet } from "@/components/CommentsSheet";
 import { getPostById } from "@/lib/feed.functions";
+import { deletePost } from "@/lib/posts.functions";
 import { toggleLike } from "@/lib/social.functions";
 import { useAuth } from "@/lib/auth";
 import { useNavigate } from "@tanstack/react-router";
-import { Heart, MessageCircle, Share2 } from "lucide-react";
+import { Heart, MessageCircle, Share2, ArrowRight, Pencil, RefreshCw, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { SITE_URL, SITE_NAME, buildPostTitle, buildPostDescription, absUrl } from "@/lib/seo";
 
@@ -20,6 +21,9 @@ const postQueryOptions = (id: string) =>
   });
 
 export const Route = createFileRoute("/p/$id")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    new: search.new === "1" || search.new === 1 ? 1 : undefined,
+  }),
   loader: ({ context, params }) =>
     context.queryClient.ensureQueryData(postQueryOptions(params.id)),
   head: ({ params, loaderData }) => {
@@ -136,16 +140,33 @@ export const Route = createFileRoute("/p/$id")({
 
 function PostPage() {
   const { id } = Route.useParams();
+  const search = Route.useSearch();
   const like = useServerFn(toggleLike);
+  const removePost = useServerFn(deletePost);
   const { user } = useAuth();
   const navigate = useNavigate();
   const audioRef = useRef<HTMLAudioElement>(null);
   const [playing, setPlaying] = useState(false);
   const [showComments, setShowComments] = useState(false);
+  const [regenBusy, setRegenBusy] = useState(false);
 
   const { data } = useSuspenseQuery(postQueryOptions(id));
   if (!data.post) return <AppShell><div className="grid h-dvh place-items-center text-sm text-muted-foreground">Post not found.</div></AppShell>;
   const p = data.post;
+  const isOwner = !!user && user.id === p.creator_id;
+  const justPosted = search.new === 1 && isOwner;
+
+  const regenerate = async () => {
+    if (!confirm("Delete this post and start over?")) return;
+    setRegenBusy(true);
+    try {
+      await removePost({ data: { id: p.id } });
+      navigate({ to: "/upload" });
+    } catch (e) {
+      toast.error((e as Error).message);
+      setRegenBusy(false);
+    }
+  };
 
   const togglePlay = () => {
     const el = audioRef.current;
@@ -178,6 +199,37 @@ function PostPage() {
       </div>
 
       <div className="px-5 py-5">
+        {justPosted && (
+          <div className="mb-5 rounded-lg border border-gold/40 bg-gradient-to-br from-card/80 to-card/40 p-4">
+            <div className="flex items-center gap-2 text-sm text-gold">
+              <CheckCircle2 className="h-4 w-4" /> Posted! Preview it above.
+            </div>
+            <p className="mt-1 text-[11px] text-muted-foreground">
+              Happy with it? Send it to the feed. Or tweak the details, or start over.
+            </p>
+            <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
+              <button
+                onClick={() => navigate({ to: "/feed" })}
+                className="inline-flex items-center justify-center gap-2 rounded-md bg-gradient-gold px-3 py-2 text-xs font-medium uppercase tracking-[0.15em] text-primary-foreground shadow-[0_0_18px_-6px_var(--gold)]"
+              >
+                <ArrowRight className="h-3.5 w-3.5" /> Continue to feed
+              </button>
+              <button
+                onClick={() => navigate({ to: "/upload" })}
+                className="inline-flex items-center justify-center gap-2 rounded-md border border-gold/40 bg-card/40 px-3 py-2 text-xs uppercase tracking-[0.15em] text-gold hover:bg-card"
+              >
+                <Pencil className="h-3.5 w-3.5" /> Back to edit
+              </button>
+              <button
+                onClick={regenerate}
+                disabled={regenBusy}
+                className="inline-flex items-center justify-center gap-2 rounded-md border border-border bg-card/40 px-3 py-2 text-xs uppercase tracking-[0.15em] text-foreground hover:bg-card disabled:opacity-50"
+              >
+                <RefreshCw className={`h-3.5 w-3.5 ${regenBusy ? "animate-spin" : ""}`} /> {regenBusy ? "Removing…" : "Regenerate"}
+              </button>
+            </div>
+          </div>
+        )}
         <h1 className="text-xl tracking-tight">{p.title}</h1>
         {data.creator && (
           <Link to="/u/$handle" params={{ handle: data.creator.handle }} className="mt-1 inline-block text-sm text-gold">
