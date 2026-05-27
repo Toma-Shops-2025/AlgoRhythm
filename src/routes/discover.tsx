@@ -57,7 +57,7 @@ function DiscoverPage() {
                 <ul className="space-y-2">
                   {results.profiles.map((p) => (
                     <li key={p.id}>
-                      <Link to="/u/$handle" params={{ handle: p.handle }} className="flex items-center gap-3 rounded-md border border-border bg-card p-3">
+                      <Link to="/u/$handle" params={{ handle: p.handle }} className="flex items-center gap-3 rounded-md border border-border bg-card/80 p-3">
                         <Avatar url={p.avatar_url} name={p.display_name} />
                         <div className="text-sm">
                           <div className="font-medium">@{p.handle}</div>
@@ -94,7 +94,7 @@ function BackgroundVideo() {
       aria-hidden
       className="pointer-events-none fixed inset-0 z-0 h-full w-full object-cover opacity-20"
     />
-    <div aria-hidden className="pointer-events-none fixed inset-0 z-0 bg-background/60" />
+    <div aria-hidden className="pointer-events-none fixed inset-0 z-0 bg-background/75" />
     </>
   );
 }
