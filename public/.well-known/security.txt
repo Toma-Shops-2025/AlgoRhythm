@@ -1,0 +1,5 @@
+Contact: mailto:contactus@myalgorhythm.online
+Expires: 2027-05-27T00:00:00.000Z
+Preferred-Languages: en
+Canonical: https://myalgorhythm.online/.well-known/security.txt
+Policy: https://myalgorhythm.online/contact
