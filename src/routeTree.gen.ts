@@ -17,6 +17,7 @@ import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as PricingRouteImport } from './routes/pricing'
 import { Route as MeRouteImport } from './routes/me'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as GuidelinesRouteImport } from './routes/guidelines'
 import { Route as FeedRouteImport } from './routes/feed'
 import { Route as DmcaRouteImport } from './routes/dmca'
 import { Route as DiscoverRouteImport } from './routes/discover'
@@ -66,6 +67,11 @@ const MeRoute = MeRouteImport.update({
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const GuidelinesRoute = GuidelinesRouteImport.update({
+  id: '/guidelines',
+  path: '/guidelines',
   getParentRoute: () => rootRouteImport,
 } as any)
 const FeedRoute = FeedRouteImport.update({
@@ -126,6 +132,7 @@ export interface FileRoutesByFullPath {
   '/discover': typeof DiscoverRoute
   '/dmca': typeof DmcaRoute
   '/feed': typeof FeedRoute
+  '/guidelines': typeof GuidelinesRoute
   '/login': typeof LoginRoute
   '/me': typeof MeRoute
   '/pricing': typeof PricingRoute
@@ -146,6 +153,7 @@ export interface FileRoutesByTo {
   '/discover': typeof DiscoverRoute
   '/dmca': typeof DmcaRoute
   '/feed': typeof FeedRoute
+  '/guidelines': typeof GuidelinesRoute
   '/login': typeof LoginRoute
   '/me': typeof MeRoute
   '/pricing': typeof PricingRoute
@@ -167,6 +175,7 @@ export interface FileRoutesById {
   '/discover': typeof DiscoverRoute
   '/dmca': typeof DmcaRoute
   '/feed': typeof FeedRoute
+  '/guidelines': typeof GuidelinesRoute
   '/login': typeof LoginRoute
   '/me': typeof MeRoute
   '/pricing': typeof PricingRoute
@@ -189,6 +198,7 @@ export interface FileRouteTypes {
     | '/discover'
     | '/dmca'
     | '/feed'
+    | '/guidelines'
     | '/login'
     | '/me'
     | '/pricing'
@@ -209,6 +219,7 @@ export interface FileRouteTypes {
     | '/discover'
     | '/dmca'
     | '/feed'
+    | '/guidelines'
     | '/login'
     | '/me'
     | '/pricing'
@@ -229,6 +240,7 @@ export interface FileRouteTypes {
     | '/discover'
     | '/dmca'
     | '/feed'
+    | '/guidelines'
     | '/login'
     | '/me'
     | '/pricing'
@@ -250,6 +262,7 @@ export interface RootRouteChildren {
   DiscoverRoute: typeof DiscoverRoute
   DmcaRoute: typeof DmcaRoute
   FeedRoute: typeof FeedRoute
+  GuidelinesRoute: typeof GuidelinesRoute
   LoginRoute: typeof LoginRoute
   MeRoute: typeof MeRoute
   PricingRoute: typeof PricingRoute
@@ -321,6 +334,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/guidelines': {
+      id: '/guidelines'
+      path: '/guidelines'
+      fullPath: '/guidelines'
+      preLoaderRoute: typeof GuidelinesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/feed': {
@@ -402,6 +422,7 @@ const rootRouteChildren: RootRouteChildren = {
   DiscoverRoute: DiscoverRoute,
   DmcaRoute: DmcaRoute,
   FeedRoute: FeedRoute,
+  GuidelinesRoute: GuidelinesRoute,
   LoginRoute: LoginRoute,
   MeRoute: MeRoute,
   PricingRoute: PricingRoute,
@@ -419,3 +440,13 @@ const rootRouteChildren: RootRouteChildren = {
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}
