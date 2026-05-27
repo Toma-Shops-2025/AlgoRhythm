@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as UploadRouteImport } from './routes/upload'
+import { Route as TermsRouteImport } from './routes/terms'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as PrivacyRouteImport } from './routes/privacy'
@@ -28,6 +29,11 @@ import { Route as ApiPublicPaymentsWebhookRouteImport } from './routes/api/publi
 const UploadRoute = UploadRouteImport.update({
   id: '/upload',
   path: '/upload',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
@@ -112,6 +118,7 @@ export interface FileRoutesByFullPath {
   '/privacy': typeof PrivacyRoute
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/terms': typeof TermsRoute
   '/upload': typeof UploadRoute
   '/api/transcribe-lyrics': typeof ApiTranscribeLyricsRoute
   '/checkout/return': typeof CheckoutReturnRoute
@@ -129,6 +136,7 @@ export interface FileRoutesByTo {
   '/privacy': typeof PrivacyRoute
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/terms': typeof TermsRoute
   '/upload': typeof UploadRoute
   '/api/transcribe-lyrics': typeof ApiTranscribeLyricsRoute
   '/checkout/return': typeof CheckoutReturnRoute
@@ -147,6 +155,7 @@ export interface FileRoutesById {
   '/privacy': typeof PrivacyRoute
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/terms': typeof TermsRoute
   '/upload': typeof UploadRoute
   '/api/transcribe-lyrics': typeof ApiTranscribeLyricsRoute
   '/checkout/return': typeof CheckoutReturnRoute
@@ -166,6 +175,7 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/signup'
     | '/sitemap.xml'
+    | '/terms'
     | '/upload'
     | '/api/transcribe-lyrics'
     | '/checkout/return'
@@ -183,6 +193,7 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/signup'
     | '/sitemap.xml'
+    | '/terms'
     | '/upload'
     | '/api/transcribe-lyrics'
     | '/checkout/return'
@@ -200,6 +211,7 @@ export interface FileRouteTypes {
     | '/privacy'
     | '/signup'
     | '/sitemap.xml'
+    | '/terms'
     | '/upload'
     | '/api/transcribe-lyrics'
     | '/checkout/return'
@@ -218,6 +230,7 @@ export interface RootRouteChildren {
   PrivacyRoute: typeof PrivacyRoute
   SignupRoute: typeof SignupRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  TermsRoute: typeof TermsRoute
   UploadRoute: typeof UploadRoute
   ApiTranscribeLyricsRoute: typeof ApiTranscribeLyricsRoute
   CheckoutReturnRoute: typeof CheckoutReturnRoute
@@ -233,6 +246,13 @@ declare module '@tanstack/react-router' {
       path: '/upload'
       fullPath: '/upload'
       preLoaderRoute: typeof UploadRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/sitemap.xml': {
@@ -346,6 +366,7 @@ const rootRouteChildren: RootRouteChildren = {
   PrivacyRoute: PrivacyRoute,
   SignupRoute: SignupRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
+  TermsRoute: TermsRoute,
   UploadRoute: UploadRoute,
   ApiTranscribeLyricsRoute: ApiTranscribeLyricsRoute,
   CheckoutReturnRoute: CheckoutReturnRoute,
