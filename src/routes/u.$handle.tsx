@@ -5,14 +5,16 @@ import { useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { TipDialog } from "@/components/TipDialog";
 import { CheckoutDialog } from "@/components/CheckoutDialog";
+import { ReportDialog } from "@/components/ReportDialog";
 import { PostGridItem } from "@/components/PostGridItem";
 import { getProfileByHandle } from "@/lib/feed.functions";
 import { toggleFollow } from "@/lib/social.functions";
+import { toggleBlock } from "@/lib/safety.functions";
 import { createCreatorSubCheckout } from "@/lib/payments.functions";
 import { getStripeEnvironment } from "@/lib/stripe";
 import { useCreatorSubscription } from "@/hooks/useSubscription";
 import { useAuth } from "@/lib/auth";
-import { Gift, Sparkles } from "lucide-react";
+import { Gift, Sparkles, Flag, Ban } from "lucide-react";
 import { toast } from "sonner";
 import { SITE_URL, SITE_NAME, buildProfileTitle, buildProfileDescription, absUrl } from "@/lib/seo";
 
@@ -100,10 +102,12 @@ function ProfilePage() {
   const { handle } = Route.useParams();
   const follow = useServerFn(toggleFollow);
   const subFn = useServerFn(createCreatorSubCheckout);
+  const blockFn = useServerFn(toggleBlock);
   const { user } = useAuth();
   const navigate = useNavigate();
   const [tipOpen, setTipOpen] = useState(false);
   const [subOpen, setSubOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
 
   const { data, refetch } = useSuspenseQuery(profileQueryOptions(handle));
   const { isSubscribed } = useCreatorSubscription(data?.profile?.id);
@@ -113,6 +117,17 @@ function ProfilePage() {
     if (!data?.profile) return;
     try { await follow({ data: { targetUserId: data.profile.id } }); refetch(); }
     catch (e) { toast.error((e as Error).message); }
+  };
+
+  const onBlock = async () => {
+    if (!user) return navigate({ to: "/login" });
+    if (!data?.profile) return;
+    if (!confirm(`Block @${data.profile.handle}? You won't see their content and they can't follow or comment on yours.`)) return;
+    try {
+      const res = await blockFn({ data: { targetUserId: data.profile.id } });
+      toast.success(res.blocked ? "User blocked" : "User unblocked");
+      refetch();
+    } catch (e) { toast.error((e as Error).message); }
   };
 
   const fetchSubSecret = subOpen && data?.profile ? async () => {
@@ -177,6 +192,17 @@ function ProfilePage() {
             </button>
           </div>
         )}
+        {!isOwner && (
+          <div className="mt-2 flex gap-2 text-[11px] text-muted-foreground">
+            <button onClick={() => setReportOpen(true)} className="inline-flex items-center gap-1 hover:text-foreground">
+              <Flag className="h-3 w-3" /> Report
+            </button>
+            <span>·</span>
+            <button onClick={onBlock} className="inline-flex items-center gap-1 hover:text-destructive">
+              <Ban className="h-3 w-3" /> Block
+            </button>
+          </div>
+        )}
 
         <div className="mt-6 grid grid-cols-3 gap-1.5 pb-12">
           {data.posts.map((post) => (
@@ -198,6 +224,12 @@ function ProfilePage() {
         onOpenChange={setSubOpen}
         title={`Subscribe to ${p.display_name}`}
         fetchClientSecret={fetchSubSecret}
+      />
+      <ReportDialog
+        open={reportOpen}
+        onOpenChange={setReportOpen}
+        targetType="user"
+        targetId={p.id}
       />
     </AppShell>
   );
