@@ -106,7 +106,7 @@ function UploadPage() {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!media || !type) return toast.error("Pick an audio or video file");
-    if (type === "audio" && convertToVideo && !cover) {
+    if (type === "audio" && convertToVideo && videoMode === "visualizer" && !cover) {
       return toast.error("Converting to video needs a cover image — upload one or generate with AI");
     }
     setBusy(true);
