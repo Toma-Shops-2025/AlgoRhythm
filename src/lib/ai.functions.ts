@@ -4,6 +4,72 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 
 const GATEWAY = "https://ai.gateway.lovable.dev/v1";
 
+export const generatePostMetadata = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((input: { idea: string; mediaType?: "audio" | "video" }) =>
+    z
+      .object({
+        idea: z.string().min(2).max(500),
+        mediaType: z.enum(["audio", "video"]).optional(),
+      })
+      .parse(input),
+  )
+  .handler(async ({ data }) => {
+    const apiKey = process.env.LOVABLE_API_KEY;
+    if (!apiKey) throw new Error("LOVABLE_API_KEY is not configured");
+
+    const kind = data.mediaType ?? "audio";
+    const system =
+      "You are a music marketing copywriter for AI-made tracks and music videos. " +
+      "Write punchy, scroll-stopping copy in the voice of an artist — confident, modern, no corporate fluff, no emojis unless they really fit. " +
+      "Return ONLY valid JSON matching the requested schema, nothing else.";
+    const user =
+      `Generate post metadata for an AI-made ${kind} post on a social feed. Source idea: "${data.idea}".\n\n` +
+      `Return JSON with exactly these keys:\n` +
+      `- "title": string, 3-8 words, headline-style, no quotes, no trailing punctuation\n` +
+      `- "caption": string, 1-3 short sentences (max ~220 chars), hook the listener\n` +
+      `- "hashtags": array of 6-10 lowercase hashtag strings WITHOUT the # symbol, no spaces, relevant to genre/mood/AI-music culture`;
+
+    const res = await fetch(`${GATEWAY}/chat/completions`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        messages: [
+          { role: "system", content: system },
+          { role: "user", content: user },
+        ],
+        response_format: { type: "json_object" },
+      }),
+    });
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      throw new Error(`Metadata generation failed: ${res.status} ${text}`);
+    }
+    const json = (await res.json()) as {
+      choices?: Array<{ message?: { content?: string } }>;
+    };
+    const content = json.choices?.[0]?.message?.content ?? "";
+    let parsed: { title?: string; caption?: string; hashtags?: unknown };
+    try {
+      parsed = JSON.parse(content);
+    } catch {
+      const match = content.match(/\{[\s\S]*\}/);
+      parsed = match ? JSON.parse(match[0]) : {};
+    }
+    const hashtags = Array.isArray(parsed.hashtags)
+      ? (parsed.hashtags as unknown[])
+          .map((t) => String(t).replace(/^#/, "").trim().toLowerCase().replace(/\s+/g, ""))
+          .filter(Boolean)
+          .slice(0, 12)
+      : [];
+    return {
+      title: String(parsed.title ?? "").trim().slice(0, 140),
+      caption: String(parsed.caption ?? "").trim().slice(0, 2000),
+      hashtags,
+    };
+  });
+
 // Lovable AI Gateway exposes image generation via the chat/completions
 // endpoint on Gemini "image" models. The model returns the image as a
 // data URL inside choices[0].message.images[].image_url.url. We strip the
