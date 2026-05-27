@@ -14,7 +14,7 @@ export const getFeed = createServerFn({ method: "GET" })
       .parse(input ?? {}),
   )
   .handler(async ({ data }) => {
-    const limit = data.limit ?? 10;
+    const limit = data.limit ?? 60;
     // Hide content from users the viewer has blocked, or who have blocked the viewer.
     let excludeCreatorIds: string[] = [];
     if (data.viewerId) {
