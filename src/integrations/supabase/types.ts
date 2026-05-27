@@ -112,6 +112,7 @@ export type Database = {
         Row: {
           ai_tools: string[]
           comment_count: number
+          complete_count: number
           cover_url: string | null
           created_at: string
           creator_id: string
@@ -120,15 +121,20 @@ export type Database = {
           id: string
           is_published: boolean
           like_count: number
+          loop_count: number
           media_url: string
+          play_count: number
+          save_count: number
           tags: string[]
           title: string
+          total_listen_ms: number
           type: string
           view_count: number
         }
         Insert: {
           ai_tools?: string[]
           comment_count?: number
+          complete_count?: number
           cover_url?: string | null
           created_at?: string
           creator_id: string
@@ -137,15 +143,20 @@ export type Database = {
           id?: string
           is_published?: boolean
           like_count?: number
+          loop_count?: number
           media_url: string
+          play_count?: number
+          save_count?: number
           tags?: string[]
           title: string
+          total_listen_ms?: number
           type: string
           view_count?: number
         }
         Update: {
           ai_tools?: string[]
           comment_count?: number
+          complete_count?: number
           cover_url?: string | null
           created_at?: string
           creator_id?: string
@@ -154,9 +165,13 @@ export type Database = {
           id?: string
           is_published?: boolean
           like_count?: number
+          loop_count?: number
           media_url?: string
+          play_count?: number
+          save_count?: number
           tags?: string[]
           title?: string
+          total_listen_ms?: number
           type?: string
           view_count?: number
         }
@@ -278,6 +293,24 @@ export type Database = {
           status?: string
           target_id?: string
           target_type?: string
+        }
+        Relationships: []
+      }
+      saves: {
+        Row: {
+          created_at: string
+          post_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          post_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          post_id?: string
+          user_id?: string
         }
         Relationships: []
       }
