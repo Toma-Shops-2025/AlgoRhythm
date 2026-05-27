@@ -534,3 +534,88 @@ function TransactionsTab() {
     </div>
   );
 }
+
+/* ============ REPORTS ============ */
+function ReportsTab() {
+  const [status, setStatus] = useState<"pending" | "resolved" | "dismissed">("pending");
+  const fn = useServerFn(listReports);
+  const resolveFn = useServerFn(resolveReport);
+  const qc = useQueryClient();
+  const { data, isLoading } = useQuery({
+    queryKey: ["admin-reports", status],
+    queryFn: () => fn({ data: { status } }),
+  });
+
+  const act = async (reportId: string, action: "dismiss" | "resolve") => {
+    try {
+      await resolveFn({ data: { reportId, action } });
+      toast.success(action === "dismiss" ? "Report dismissed" : "Report resolved");
+      qc.invalidateQueries({ queryKey: ["admin-reports"] });
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : "Failed");
+    }
+  };
+
+  const linkFor = (r: { target_type: string; target_id: string }) => {
+    if (r.target_type === "post") return `/p/${r.target_id}`;
+    return null;
+  };
+
+  return (
+    <div className="space-y-3">
+      <div className="flex gap-2">
+        {(["pending", "resolved", "dismissed"] as const).map((s) => (
+          <Button
+            key={s}
+            size="sm"
+            variant={status === s ? "default" : "outline"}
+            onClick={() => setStatus(s)}
+          >
+            {s}
+          </Button>
+        ))}
+      </div>
+      {isLoading && <Loader2 className="mx-auto h-5 w-5 animate-spin text-muted-foreground" />}
+      <div className="divide-y divide-border/60 overflow-hidden rounded-lg border border-border/60">
+        {(data ?? []).map((r) => {
+          const link = linkFor(r);
+          return (
+            <div key={r.id} className="flex items-start gap-3 p-3">
+              <Flag className="mt-1 h-4 w-4 shrink-0 text-destructive" />
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2 text-sm">
+                  <Badge variant="outline">{r.reason}</Badge>
+                  <Badge variant="secondary">{r.target_type}</Badge>
+                  {link ? (
+                    <Link to="/p/$id" params={{ id: r.target_id }} className="text-xs text-muted-foreground hover:text-foreground">
+                      view target
+                    </Link>
+                  ) : (
+                    <span className="font-mono text-xs text-muted-foreground">{r.target_id.slice(0, 8)}…</span>
+                  )}
+                </div>
+                <div className="mt-1 text-xs text-muted-foreground">
+                  by @{r.reporter?.handle ?? "?"} · {new Date(r.created_at).toLocaleString()}
+                </div>
+                {r.details && <p className="mt-2 text-sm text-foreground/90">{r.details}</p>}
+              </div>
+              {status === "pending" && (
+                <div className="flex shrink-0 items-center gap-1">
+                  <Button size="sm" variant="outline" onClick={() => act(r.id, "dismiss")} title="Dismiss">
+                    <X className="h-4 w-4" />
+                  </Button>
+                  <Button size="sm" variant="default" onClick={() => act(r.id, "resolve")} title="Mark resolved">
+                    <Check className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
+            </div>
+          );
+        })}
+        {!isLoading && !(data ?? []).length && (
+          <div className="p-6 text-center text-sm text-muted-foreground">No {status} reports</div>
+        )}
+      </div>
+    </div>
+  );
+}
