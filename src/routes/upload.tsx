@@ -1,7 +1,8 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
+import { useProSubscription } from "@/hooks/useSubscription";
 import { useServerFn } from "@tanstack/react-start";
 import { createPost } from "@/lib/posts.functions";
 import { generateCoverImage, generatePostMetadata, generateMusicVideoScenes } from "@/lib/ai.functions";
@@ -32,6 +33,7 @@ export const Route = createFileRoute("/upload")({
 
 function UploadPage() {
   const { user, loading } = useAuth();
+  const { isPro } = useProSubscription();
   const navigate = useNavigate();
   const search = Route.useSearch();
   const regenCount = search.regen ?? 0;
@@ -78,6 +80,7 @@ function UploadPage() {
   };
 
   const handleGenerateCover = async () => {
+    if (!isPro) { toast.error("AI cover art is a Pro feature"); navigate({ to: "/pricing" }); return; }
     const prompt = title.trim() || caption.trim() || idea.trim() || tags.trim();
     if (!prompt) { toast.error("Add a title first so the AI knows what to draw"); return; }
     setGenerating(true);
@@ -94,6 +97,7 @@ function UploadPage() {
   };
 
   const handleGenerateMeta = async () => {
+    if (!isPro) { toast.error("AI captions are a Pro feature"); navigate({ to: "/pricing" }); return; }
     const seed = idea.trim() || title.trim() || caption.trim();
     if (!seed) { toast.error("Type a quick idea or title first"); return; }
     setGenMetaLoading(true);
@@ -220,6 +224,19 @@ function UploadPage() {
         <p className="mt-1 text-xs uppercase tracking-[0.2em] text-muted-foreground">Audio or video. AI-made.</p>
 
         <form onSubmit={submit} className="mt-6 space-y-4">
+          {!isPro && (
+            <Link
+              to="/pricing"
+              className="block rounded-md border border-gold/40 bg-gradient-to-r from-gold/10 to-transparent p-3 text-xs"
+            >
+              <span className="flex items-center gap-2 font-medium text-gold">
+                <Sparkles className="h-3.5 w-3.5" /> Unlock AI features with Pro
+              </span>
+              <span className="mt-1 block text-muted-foreground">
+                AI cover art, AI title/caption/hashtags, lyric videos and scene generation are Pro perks. Upgrade →
+              </span>
+            </Link>
+          )}
           <FilePick
             label="Media (audio or video)"
             icon={type === "video" ? Film : Music}
@@ -282,10 +299,13 @@ function UploadPage() {
                 />
                 <ModeOption
                   active={videoMode === "lyric"}
-                  onClick={() => setVideoMode("lyric")}
+                  onClick={() => {
+                    if (!isPro) { toast.error("Lyric videos are a Pro feature"); navigate({ to: "/pricing" }); return; }
+                    setVideoMode("lyric");
+                  }}
                   icon={Type}
                   title="Lyric video"
-                  desc="AI lyrics + AI scenes"
+                  desc={isPro ? "AI lyrics + AI scenes" : "Pro only"}
                 />
               </div>
               {videoMode === "visualizer" && !cover && (

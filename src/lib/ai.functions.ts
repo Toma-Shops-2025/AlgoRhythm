@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { userIsPro, ProRequiredError } from "./pro.server";
 
 const GATEWAY = "https://ai.gateway.lovable.dev/v1";
 
@@ -14,7 +15,8 @@ export const generatePostMetadata = createServerFn({ method: "POST" })
       })
       .parse(input),
   )
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
+    if (!(await userIsPro(context.userId))) throw new ProRequiredError();
     const apiKey = process.env.LOVABLE_API_KEY;
     if (!apiKey) throw new Error("LOVABLE_API_KEY is not configured");
 
@@ -116,7 +118,8 @@ export const generateCoverImage = createServerFn({ method: "POST" })
   .inputValidator((input: { prompt: string }) =>
     z.object({ prompt: z.string().min(2).max(500) }).parse(input),
   )
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
+    if (!(await userIsPro(context.userId))) throw new ProRequiredError();
     const apiKey = process.env.LOVABLE_API_KEY;
     if (!apiKey) throw new Error("LOVABLE_API_KEY is not configured");
 
@@ -138,7 +141,8 @@ export const generateMusicVideoScenes = createServerFn({ method: "POST" })
         })
         .parse(input),
   )
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
+    if (!(await userIsPro(context.userId))) throw new ProRequiredError();
     const apiKey = process.env.LOVABLE_API_KEY;
     if (!apiKey) throw new Error("LOVABLE_API_KEY is not configured");
 
