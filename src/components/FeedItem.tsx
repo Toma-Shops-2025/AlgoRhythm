@@ -86,10 +86,19 @@ export function FeedItem({
 
   const share = async () => {
     const url = `${window.location.origin}/p/${post.id}`;
+    const isMobile = /Mobi|Android|iPhone|iPad/i.test(navigator.userAgent);
     try {
-      if (navigator.share) await navigator.share({ title: post.title, url });
-      else { await navigator.clipboard.writeText(url); toast.success("Link copied"); }
-    } catch { /* user dismissed */ }
+      if (isMobile && navigator.share) {
+        await navigator.share({ title: post.title, url });
+        return;
+      }
+    } catch { /* user dismissed native share — fall through to copy */ }
+    try {
+      await navigator.clipboard.writeText(url);
+      toast.success("Link copied");
+    } catch {
+      toast.error("Couldn't copy link");
+    }
   };
 
   return (
