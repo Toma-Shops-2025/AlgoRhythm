@@ -149,7 +149,13 @@ function UploadPage() {
         <p className="mt-1 text-xs uppercase tracking-[0.2em] text-muted-foreground">Audio or video. AI-made.</p>
 
         <form onSubmit={submit} className="mt-6 space-y-4">
-          <FilePick label="Media (audio or video)" icon={type === "video" ? Film : Music} accept="audio/*,video/*" file={media} onChange={setMedia} />
+          <FilePick
+            label="Media (audio or video)"
+            icon={type === "video" ? Film : Music}
+            accept="audio/*,video/*,.mp3,.m4a,.aac,.wav,.flac,.ogg,.oga,.opus,.aiff,.aif,.wma,.mp4,.mov,.m4v,.webm,.mkv,.avi"
+            file={media}
+            onChange={setMedia}
+          />
           {(type === "audio" || type === "video") && (
             <div className="space-y-2">
               <FilePick
