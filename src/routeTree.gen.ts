@@ -16,6 +16,7 @@ import { Route as SignupRouteImport } from './routes/signup'
 import { Route as RefundsRouteImport } from './routes/refunds'
 import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as PricingRouteImport } from './routes/pricing'
+import { Route as PayoutsRouteImport } from './routes/payouts'
 import { Route as MeRouteImport } from './routes/me'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as GuidelinesRouteImport } from './routes/guidelines'
@@ -65,6 +66,11 @@ const PrivacyRoute = PrivacyRouteImport.update({
 const PricingRoute = PricingRouteImport.update({
   id: '/pricing',
   path: '/pricing',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PayoutsRoute = PayoutsRouteImport.update({
+  id: '/payouts',
+  path: '/payouts',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MeRoute = MeRouteImport.update({
@@ -155,6 +161,7 @@ export interface FileRoutesByFullPath {
   '/guidelines': typeof GuidelinesRoute
   '/login': typeof LoginRoute
   '/me': typeof MeRoute
+  '/payouts': typeof PayoutsRoute
   '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
   '/refunds': typeof RefundsRoute
@@ -179,6 +186,7 @@ export interface FileRoutesByTo {
   '/guidelines': typeof GuidelinesRoute
   '/login': typeof LoginRoute
   '/me': typeof MeRoute
+  '/payouts': typeof PayoutsRoute
   '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
   '/refunds': typeof RefundsRoute
@@ -204,6 +212,7 @@ export interface FileRoutesById {
   '/guidelines': typeof GuidelinesRoute
   '/login': typeof LoginRoute
   '/me': typeof MeRoute
+  '/payouts': typeof PayoutsRoute
   '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
   '/refunds': typeof RefundsRoute
@@ -230,6 +239,7 @@ export interface FileRouteTypes {
     | '/guidelines'
     | '/login'
     | '/me'
+    | '/payouts'
     | '/pricing'
     | '/privacy'
     | '/refunds'
@@ -254,6 +264,7 @@ export interface FileRouteTypes {
     | '/guidelines'
     | '/login'
     | '/me'
+    | '/payouts'
     | '/pricing'
     | '/privacy'
     | '/refunds'
@@ -278,6 +289,7 @@ export interface FileRouteTypes {
     | '/guidelines'
     | '/login'
     | '/me'
+    | '/payouts'
     | '/pricing'
     | '/privacy'
     | '/refunds'
@@ -303,6 +315,7 @@ export interface RootRouteChildren {
   GuidelinesRoute: typeof GuidelinesRoute
   LoginRoute: typeof LoginRoute
   MeRoute: typeof MeRoute
+  PayoutsRoute: typeof PayoutsRoute
   PricingRoute: typeof PricingRoute
   PrivacyRoute: typeof PrivacyRoute
   RefundsRoute: typeof RefundsRoute
@@ -366,6 +379,13 @@ declare module '@tanstack/react-router' {
       path: '/pricing'
       fullPath: '/pricing'
       preLoaderRoute: typeof PricingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/payouts': {
+      id: '/payouts'
+      path: '/payouts'
+      fullPath: '/payouts'
+      preLoaderRoute: typeof PayoutsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/me': {
@@ -487,6 +507,7 @@ const rootRouteChildren: RootRouteChildren = {
   GuidelinesRoute: GuidelinesRoute,
   LoginRoute: LoginRoute,
   MeRoute: MeRoute,
+  PayoutsRoute: PayoutsRoute,
   PricingRoute: PricingRoute,
   PrivacyRoute: PrivacyRoute,
   RefundsRoute: RefundsRoute,
