@@ -256,3 +256,154 @@ export function loadImageFromB64(b64: string): Promise<HTMLImageElement> {
     img.src = b64.startsWith("data:") ? b64 : `data:image/png;base64,${b64}`;
   });
 }
+
+export type LyricLine = { start: number; end: number; text: string };
+
+// Wrap text into lines that fit within maxWidth, in the current ctx font.
+function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
+  const words = text.split(/\s+/);
+  const lines: string[] = [];
+  let current = "";
+  for (const w of words) {
+    const test = current ? `${current} ${w}` : w;
+    if (ctx.measureText(test).width > maxWidth && current) {
+      lines.push(current);
+      current = w;
+    } else {
+      current = test;
+    }
+  }
+  if (current) lines.push(current);
+  return lines;
+}
+
+// Render an audio + scene images + timed lyrics into a lyric video webm.
+export async function audioToLyricVideo(
+  audioFile: File,
+  sceneImages: HTMLImageElement[],
+  lyrics: LyricLine[],
+): Promise<Blob> {
+  if (typeof MediaRecorder === "undefined") {
+    throw new Error("Your browser does not support video conversion. Try Chrome or Edge.");
+  }
+  if (sceneImages.length === 0) throw new Error("No scenes to render");
+
+  const W = 720, H = 1280;
+  const canvas = document.createElement("canvas");
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Canvas not available");
+
+  const arrayBuf = await audioFile.arrayBuffer();
+  const AC = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+  const ac = new AC();
+  const decoded = await ac.decodeAudioData(arrayBuf.slice(0));
+  const duration = decoded.duration;
+
+  const source = ac.createBufferSource();
+  source.buffer = decoded;
+  const dest = ac.createMediaStreamDestination();
+  source.connect(dest);
+
+  const videoStream = canvas.captureStream(30);
+  const stream = new MediaStream([...videoStream.getVideoTracks(), ...dest.stream.getAudioTracks()]);
+
+  const mime = ["video/webm;codecs=vp9,opus", "video/webm;codecs=vp8,opus", "video/webm"]
+    .find((m) => MediaRecorder.isTypeSupported(m)) ?? "video/webm";
+  const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 3_000_000 });
+  const chunks: Blob[] = [];
+  rec.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
+  const done = new Promise<Blob>((resolve) => { rec.onstop = () => resolve(new Blob(chunks, { type: "video/webm" })); });
+
+  const sceneDuration = duration / sceneImages.length;
+  const fadeDuration = Math.min(1.2, sceneDuration * 0.4);
+
+  // Pre-sort lyrics
+  const sorted = [...lyrics].sort((a, b) => a.start - b.start);
+
+  const drawScene = (img: HTMLImageElement, progress: number, alpha: number) => {
+    const zoom = 1.08 + 0.18 * progress;
+    const iw = img.naturalWidth, ih = img.naturalHeight;
+    const scale = Math.max(W / iw, H / ih) * zoom;
+    const dw = iw * scale, dh = ih * scale;
+    const panX = (W - dw) / 2 + Math.sin(progress * Math.PI) * 24;
+    const panY = (H - dh) / 2 + (progress - 0.5) * 40;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.drawImage(img, panX, panY, dw, dh);
+    ctx.restore();
+  };
+
+  let raf = 0;
+  const start = performance.now();
+
+  const draw = () => {
+    raf = requestAnimationFrame(draw);
+    const t = (performance.now() - start) / 1000;
+
+    ctx.fillStyle = "#000";
+    ctx.fillRect(0, 0, W, H);
+
+    const idx = Math.min(sceneImages.length - 1, Math.floor(t / sceneDuration));
+    const localT = t - idx * sceneDuration;
+    const progress = Math.min(1, localT / sceneDuration);
+    drawScene(sceneImages[idx], progress, 1);
+    if (idx < sceneImages.length - 1 && localT > sceneDuration - fadeDuration) {
+      const fadeT = (localT - (sceneDuration - fadeDuration)) / fadeDuration;
+      drawScene(sceneImages[idx + 1], 0, fadeT);
+    }
+
+    // Darken bottom half for legibility
+    const grd = ctx.createLinearGradient(0, H * 0.35, 0, H);
+    grd.addColorStop(0, "rgba(0,0,0,0)");
+    grd.addColorStop(1, "rgba(0,0,0,0.72)");
+    ctx.fillStyle = grd;
+    ctx.fillRect(0, 0, W, H);
+
+    // Current lyric line(s)
+    const active = sorted.find((l) => t >= l.start && t <= l.end);
+    if (active) {
+      // Fade in/out within the line window
+      const span = Math.max(0.3, active.end - active.start);
+      const into = Math.min(1, (t - active.start) / Math.min(0.35, span * 0.3));
+      const outOf = Math.min(1, (active.end - t) / Math.min(0.35, span * 0.3));
+      const alpha = Math.max(0, Math.min(1, Math.min(into, outOf)));
+
+      ctx.save();
+      ctx.globalAlpha = alpha;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.font = "600 44px ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif";
+      const maxWidth = W * 0.86;
+      const lines = wrapText(ctx, active.text, maxWidth);
+      const lineHeight = 56;
+      const totalH = lines.length * lineHeight;
+      const cy = H * 0.78 - totalH / 2;
+      lines.forEach((line, i) => {
+        const y = cy + i * lineHeight + lineHeight / 2;
+        ctx.shadowColor = "rgba(0,0,0,0.9)";
+        ctx.shadowBlur = 18;
+        ctx.fillStyle = "#fff";
+        ctx.fillText(line, W / 2, y);
+      });
+      ctx.restore();
+    }
+
+    // Subtle gold underline accent at the bottom
+    ctx.fillStyle = "rgba(240,215,140,0.5)";
+    ctx.fillRect(W * 0.4, H - 60, W * 0.2, 2);
+  };
+
+  draw();
+  rec.start(250);
+  source.start();
+
+  await new Promise((r) => setTimeout(r, Math.ceil(duration * 1000) + 300));
+
+  try { source.stop(); } catch { /* noop */ }
+  rec.stop();
+  const blob = await done;
+  cancelAnimationFrame(raf);
+  try { await ac.close(); } catch { /* noop */ }
+  return blob;
+}
