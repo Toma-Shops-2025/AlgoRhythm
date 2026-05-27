@@ -294,6 +294,11 @@ function UploadPage() {
             </div>
           )}
 
+          <Field label="Title">
+            <input required maxLength={140} value={title} onChange={(e) => setTitle(e.target.value)}
+              className="w-full rounded-md border border-border bg-card px-3 py-2.5 text-sm outline-none focus:border-gold/50" />
+          </Field>
+
           <div className="rounded-md border border-gold/20 bg-card/30 p-3 space-y-2">
             <Field label="Quick idea (optional)">
               <input
@@ -318,10 +323,6 @@ function UploadPage() {
             </p>
           </div>
 
-          <Field label="Title">
-            <input required maxLength={140} value={title} onChange={(e) => setTitle(e.target.value)}
-              className="w-full rounded-md border border-border bg-card px-3 py-2.5 text-sm outline-none focus:border-gold/50" />
-          </Field>
           <Field label="Caption">
             <textarea rows={3} maxLength={2000} value={caption} onChange={(e) => setCaption(e.target.value)}
               className="w-full rounded-md border border-border bg-card px-3 py-2.5 text-sm outline-none focus:border-gold/50" />
@@ -331,7 +332,7 @@ function UploadPage() {
               placeholder="#aimusic #synthwave #suno"
               className="w-full rounded-md border border-border bg-card px-3 py-2.5 text-sm outline-none focus:border-gold/50" />
           </Field>
-          <Field label="Tags (comma separated)">
+          <Field label="Genre / Tags (comma separated)">
             <input value={tags} onChange={(e) => setTags(e.target.value)} placeholder="synthwave, drill, lofi"
               className="w-full rounded-md border border-border bg-card px-3 py-2.5 text-sm outline-none focus:border-gold/50" />
           </Field>

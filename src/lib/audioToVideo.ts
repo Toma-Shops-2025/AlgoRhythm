@@ -353,10 +353,10 @@ export async function audioToLyricVideo(
       drawScene(sceneImages[idx + 1], 0, fadeT);
     }
 
-    // Darken bottom half for legibility
-    const grd = ctx.createLinearGradient(0, H * 0.35, 0, H);
-    grd.addColorStop(0, "rgba(0,0,0,0)");
-    grd.addColorStop(1, "rgba(0,0,0,0.72)");
+    // Darken top area for lyric legibility (lyrics render near the top)
+    const grd = ctx.createLinearGradient(0, 0, 0, H * 0.45);
+    grd.addColorStop(0, "rgba(0,0,0,0.72)");
+    grd.addColorStop(1, "rgba(0,0,0,0)");
     ctx.fillStyle = grd;
     ctx.fillRect(0, 0, W, H);
 
@@ -378,7 +378,8 @@ export async function audioToLyricVideo(
       const lines = wrapText(ctx, active.text, maxWidth);
       const lineHeight = 56;
       const totalH = lines.length * lineHeight;
-      const cy = H * 0.78 - totalH / 2;
+      // Position lyrics near the top so they don't collide with feed captions/UI
+      const cy = H * 0.12;
       lines.forEach((line, i) => {
         const y = cy + i * lineHeight + lineHeight / 2;
         ctx.shadowColor = "rgba(0,0,0,0.9)";
