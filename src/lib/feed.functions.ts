@@ -4,12 +4,14 @@ import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
 export const getFeed = createServerFn({ method: "GET" })
   .inputValidator(
-    (input: { cursor?: string | null; limit?: number; viewerId?: string | null } | undefined) =>
+    (input: { cursor?: string | null; limit?: number; viewerId?: string | null; tag?: string | null; aiTool?: string | null } | undefined) =>
     z
       .object({
         cursor: z.string().nullish(),
         limit: z.number().min(1).max(30).optional(),
         viewerId: z.string().uuid().nullish(),
+        tag: z.string().min(1).max(40).nullish(),
+        aiTool: z.string().min(1).max(40).nullish(),
       })
       .parse(input ?? {}),
   )
@@ -36,6 +38,8 @@ export const getFeed = createServerFn({ method: "GET" })
       .order("created_at", { ascending: false })
       .limit(limit);
     if (data.cursor) q = q.lt("created_at", data.cursor);
+    if (data.tag) q = q.contains("tags", [data.tag.toLowerCase()]);
+    if (data.aiTool) q = q.contains("ai_tools", [data.aiTool.toLowerCase()]);
     if (excludeCreatorIds.length) {
       q = q.not("creator_id", "in", `(${excludeCreatorIds.join(",")})`);
     }
