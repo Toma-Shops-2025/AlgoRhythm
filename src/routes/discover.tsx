@@ -48,11 +48,11 @@ function DiscoverPage() {
     <AppShell>
       <div className="relative px-5 pt-6">
         <BackgroundVideo />
-        <h1 className="text-2xl tracking-tight text-gradient-gold drop-shadow-[0_2px_12px_rgba(0,0,0,0.8)]">Discover</h1>
+        <h1 className="text-2xl tracking-tight text-gradient-gold drop-shadow-[0_2px_16px_rgba(0,0,0,0.9)]">Discover</h1>
         <div className="relative mt-4">
           <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-foreground/70" />
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search creators, tracks, tags"
-            className="w-full rounded-md border border-gold/25 bg-card/95 px-9 py-2.5 text-sm text-foreground placeholder:text-foreground/55 outline-none focus:border-gold/60" />
+            className="w-full rounded-md border border-gold/30 bg-card/95 px-9 py-2.5 text-sm text-foreground placeholder:text-foreground/70 outline-none focus:border-gold/70" />
         </div>
 
         {q.trim().length > 1 ? (
@@ -66,8 +66,8 @@ function DiscoverPage() {
                       <Link to="/u/$handle" params={{ handle: p.handle }} className="flex items-center gap-3 rounded-md border border-gold/20 bg-card/95 p-3">
                         <Avatar url={p.avatar_url} name={p.display_name} />
                         <div className="text-sm">
-                          <div className="font-medium text-foreground">@{p.handle}</div>
-                          <div className="text-xs text-foreground/75">{p.display_name}</div>
+                          <div className="font-medium text-foreground drop-shadow-sm">@{p.handle}</div>
+                          <div className="text-xs text-foreground">{p.display_name}</div>
                         </div>
                       </Link>
                     </li>
@@ -122,7 +122,7 @@ function FilterChips({
               "rounded-full border px-2.5 py-1 text-[11px] uppercase tracking-wide transition",
               active
                 ? "border-gold/60 bg-gold/15 text-gold"
-                : "border-gold/25 bg-card/90 text-foreground/85 hover:text-foreground hover:border-gold/50",
+                : "border-gold/30 bg-card/95 text-foreground hover:border-gold/60 hover:shadow-[0_0_12px_rgba(201,168,76,0.15)]",
             )}
           >
             {o}
@@ -151,7 +151,7 @@ function BackgroundVideo() {
 }
 
 function PostGrid({ posts }: { posts: Array<{ id: string; title: string; cover_url: string | null; type: string; media_url?: string | null }> }) {
-  if (posts.length === 0) return <p className="text-sm text-muted-foreground">Nothing yet.</p>;
+  if (posts.length === 0) return <p className="text-sm text-foreground/70">Nothing yet.</p>;
   return (
     <div className="grid grid-cols-3 gap-1.5">
       {posts.map((p) => {
