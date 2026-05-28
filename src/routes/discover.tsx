@@ -48,26 +48,26 @@ function DiscoverPage() {
     <AppShell>
       <div className="relative px-5 pt-6">
         <BackgroundVideo />
-        <h1 className="text-2xl tracking-tight text-gradient-gold">Discover</h1>
+        <h1 className="text-2xl tracking-tight text-gradient-gold drop-shadow-[0_2px_12px_rgba(0,0,0,0.8)]">Discover</h1>
         <div className="relative mt-4">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-foreground/70" />
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search creators, tracks, tags"
-            className="w-full rounded-md border border-border bg-card px-9 py-2.5 text-sm outline-none focus:border-gold/50" />
+            className="w-full rounded-md border border-gold/25 bg-card/95 px-9 py-2.5 text-sm text-foreground placeholder:text-foreground/55 outline-none focus:border-gold/60" />
         </div>
 
         {q.trim().length > 1 ? (
           <section className="mt-6 space-y-6">
             {results?.profiles && results.profiles.length > 0 && (
               <div>
-                <h2 className="mb-2 text-[11px] uppercase tracking-[0.2em] text-muted-foreground">Creators</h2>
+                <h2 className="mb-2 text-[11px] uppercase tracking-[0.2em] text-gold-soft">Creators</h2>
                 <ul className="space-y-2">
                   {results.profiles.map((p) => (
                     <li key={p.id}>
-                      <Link to="/u/$handle" params={{ handle: p.handle }} className="flex items-center gap-3 rounded-md border border-border bg-card/85 p-3">
+                      <Link to="/u/$handle" params={{ handle: p.handle }} className="flex items-center gap-3 rounded-md border border-gold/20 bg-card/95 p-3">
                         <Avatar url={p.avatar_url} name={p.display_name} />
                         <div className="text-sm">
-                          <div className="font-medium">@{p.handle}</div>
-                          <div className="text-xs text-muted-foreground">{p.display_name}</div>
+                          <div className="font-medium text-foreground">@{p.handle}</div>
+                          <div className="text-xs text-foreground/75">{p.display_name}</div>
                         </div>
                       </Link>
                     </li>
@@ -81,15 +81,15 @@ function DiscoverPage() {
           <section className="mt-6">
             <div className="space-y-3">
               <div>
-                <div className="mb-1.5 text-[10px] uppercase tracking-[0.2em] text-muted-foreground">Mood</div>
+                <div className="mb-1.5 text-[10px] uppercase tracking-[0.2em] text-gold-soft">Mood</div>
                 <FilterChips options={MOOD_TAGS} value={tag} onChange={setTag} />
               </div>
               <div>
-                <div className="mb-1.5 text-[10px] uppercase tracking-[0.2em] text-muted-foreground">AI Tool</div>
+                <div className="mb-1.5 text-[10px] uppercase tracking-[0.2em] text-gold-soft">AI Tool</div>
                 <FilterChips options={AI_TOOLS} value={aiTool} onChange={setAiTool} />
               </div>
             </div>
-            <h2 className="mb-2 mt-5 text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+            <h2 className="mb-2 mt-5 text-[11px] uppercase tracking-[0.2em] text-gold-soft">
               {tag || aiTool ? "Filtered" : "Trending"}
             </h2>
             <PostGrid posts={trending?.items ?? []} />
@@ -122,7 +122,7 @@ function FilterChips({
               "rounded-full border px-2.5 py-1 text-[11px] uppercase tracking-wide transition",
               active
                 ? "border-gold/60 bg-gold/15 text-gold"
-                : "border-border bg-card/70 text-muted-foreground hover:text-foreground",
+                : "border-gold/25 bg-card/90 text-foreground/85 hover:text-foreground hover:border-gold/50",
             )}
           >
             {o}
@@ -145,7 +145,7 @@ function BackgroundVideo() {
       aria-hidden
       className="pointer-events-none fixed inset-0 z-0 h-full w-full object-cover opacity-20"
     />
-    <div aria-hidden className="pointer-events-none fixed inset-0 z-0 bg-background/70" />
+    <div aria-hidden className="pointer-events-none fixed inset-0 z-0 bg-background/55" />
     </>
   );
 }
