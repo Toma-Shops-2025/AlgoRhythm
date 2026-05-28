@@ -43,7 +43,7 @@ function Index() {
           <Sparkles className="h-3 w-3" /> AI music, made viral
         </div>
         <h1 className="text-gradient-gold text-5xl leading-[1.05] tracking-tight drop-shadow-[0_2px_20px_rgba(0,0,0,0.8)]">
-          The vertical feed<br />for AI creators.
+          The vertical feed<br />for AI music creators.
         </h1>
         <p className="mx-auto mt-5 max-w-sm text-balance text-sm text-foreground/85 drop-shadow-[0_1px_8px_rgba(0,0,0,0.9)]">
           Post your AI-made tracks and music videos. Get discovered. Earn from the people who love it.
@@ -77,9 +77,9 @@ function Index() {
             key={f.k}
             className="rounded-xl border border-gold/20 bg-card/95 p-5 shadow-[0_8px_30px_-12px_rgba(0,0,0,0.8)]"
           >
-            <div className="text-[11px] tracking-[0.2em] text-gold-soft">{f.k}</div>
-            <h2 className="mt-2 text-lg text-foreground">{f.t}</h2>
-            <p className="mt-1 text-sm text-foreground/80">{f.d}</p>
+            <div className="text-[11px] tracking-[0.2em] text-gold">{f.k}</div>
+            <h2 className="text-gradient-gold mt-2 text-lg drop-shadow-[0_2px_12px_rgba(0,0,0,0.8)]">{f.t}</h2>
+            <p className="mt-1 text-sm text-foreground drop-shadow-[0_1px_6px_rgba(0,0,0,0.9)]">{f.d}</p>
           </article>
         ))}
       </section>
