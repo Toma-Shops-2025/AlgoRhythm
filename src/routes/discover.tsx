@@ -81,15 +81,15 @@ function DiscoverPage() {
           <section className="mt-6">
             <div className="space-y-3">
               <div>
-                <div className="mb-1.5 text-[10px] uppercase tracking-[0.2em] text-gold-soft">Mood</div>
+                <div className="mb-1.5 text-[10px] uppercase tracking-[0.2em] text-gold drop-shadow-[0_1px_6px_rgba(0,0,0,0.9)]">Mood</div>
                 <FilterChips options={MOOD_TAGS} value={tag} onChange={setTag} />
               </div>
               <div>
-                <div className="mb-1.5 text-[10px] uppercase tracking-[0.2em] text-gold-soft">AI Tool</div>
+                <div className="mb-1.5 text-[10px] uppercase tracking-[0.2em] text-gold drop-shadow-[0_1px_6px_rgba(0,0,0,0.9)]">AI Tool</div>
                 <FilterChips options={AI_TOOLS} value={aiTool} onChange={setAiTool} />
               </div>
             </div>
-            <h2 className="mb-2 mt-5 text-[11px] uppercase tracking-[0.2em] text-gold-soft">
+            <h2 className="mb-2 mt-5 text-[11px] uppercase tracking-[0.2em] text-gold drop-shadow-[0_1px_6px_rgba(0,0,0,0.9)]">
               {tag || aiTool ? "Filtered" : "Trending"}
             </h2>
             <PostGrid posts={trending?.items ?? []} />
