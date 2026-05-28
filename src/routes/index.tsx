@@ -26,7 +26,7 @@ function Index() {
         aria-hidden
         className="pointer-events-none fixed inset-0 z-0 h-full w-full object-cover opacity-20"
       />
-      <div aria-hidden className="pointer-events-none fixed inset-0 z-0 bg-background/70" />
+      <div aria-hidden className="pointer-events-none fixed inset-0 z-0 bg-background/55" />
 
       <header className="flex items-center justify-between px-5 pt-6">
         <Wordmark />
