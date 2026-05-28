@@ -39,13 +39,13 @@ function Index() {
       </header>
 
       <section className="px-6 pt-16 pb-10 text-center">
-        <div className="mx-auto mb-6 inline-flex items-center gap-2 rounded-full border border-gold/30 bg-card/85 px-3 py-1 text-[11px] uppercase tracking-[0.22em] text-gold">
+        <div className="mx-auto mb-6 inline-flex items-center gap-2 rounded-full border border-gold/60 bg-card/90 px-3 py-1 text-[11px] uppercase tracking-[0.22em] text-gold-soft">
           <Sparkles className="h-3 w-3" /> AI music, made viral
         </div>
-        <h1 className="text-gradient-gold text-5xl leading-[1.05] tracking-tight">
+        <h1 className="text-gradient-gold text-5xl leading-[1.05] tracking-tight drop-shadow-[0_2px_20px_rgba(0,0,0,0.8)]">
           The vertical feed<br />for AI creators.
         </h1>
-        <p className="mx-auto mt-5 max-w-sm text-balance text-sm text-muted-foreground">
+        <p className="mx-auto mt-5 max-w-sm text-balance text-sm text-foreground/85 drop-shadow-[0_1px_8px_rgba(0,0,0,0.9)]">
           Post your AI-made tracks and music videos. Get discovered. Earn from the people who love it.
         </p>
         <div className="mt-8 flex items-center justify-center gap-3">
@@ -57,12 +57,12 @@ function Index() {
           </a>
           <a
             href="/feed"
-            className="rounded-md border border-border px-5 py-3 text-sm text-foreground hover:border-gold/50"
+            className="rounded-md border border-gold/40 bg-card/70 backdrop-blur-sm px-5 py-3 text-sm text-foreground hover:border-gold/70"
           >
             Watch the feed
           </a>
         </div>
-        <p className="mt-3 text-[11px] uppercase tracking-[0.2em] text-muted-foreground">
+        <p className="mt-3 text-[11px] uppercase tracking-[0.2em] text-foreground/70">
           No account needed to browse
         </p>
       </section>
@@ -75,11 +75,11 @@ function Index() {
         ].map((f) => (
           <article
             key={f.k}
-            className="rounded-xl border border-border/70 bg-card/85 p-5"
+            className="rounded-xl border border-gold/20 bg-card/95 p-5 shadow-[0_8px_30px_-12px_rgba(0,0,0,0.8)]"
           >
-            <div className="text-[11px] tracking-[0.2em] text-gold">{f.k}</div>
-            <h2 className="mt-2 text-lg">{f.t}</h2>
-            <p className="mt-1 text-sm text-muted-foreground">{f.d}</p>
+            <div className="text-[11px] tracking-[0.2em] text-gold-soft">{f.k}</div>
+            <h2 className="mt-2 text-lg text-foreground">{f.t}</h2>
+            <p className="mt-1 text-sm text-foreground/80">{f.d}</p>
           </article>
         ))}
       </section>
