@@ -72,6 +72,7 @@ export function FeedItem({
   const videoRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const [playing, setPlaying] = useState(false);
+  const [volume, setVolume] = useState(1);
   const [tipOpen, setTipOpen] = useState(false);
   const [reportPostOpen, setReportPostOpen] = useState(false);
   const [reportUserOpen, setReportUserOpen] = useState(false);
@@ -90,6 +91,7 @@ export function FeedItem({
     if (active) {
       el.currentTime = 0;
       el.muted = muted;
+      el.volume = volume;
       reportedPlayRef.current = false;
       reportedCompleteRef.current = false;
       loopsRef.current = 0;
@@ -109,6 +111,13 @@ export function FeedItem({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active, post.type, muted]);
+
+  // Apply volume changes live without restarting playback.
+  useEffect(() => {
+    const el = post.type === "video" ? videoRef.current : audioRef.current;
+    if (!el) return;
+    el.volume = volume;
+  }, [volume, post.type]);
 
   // Fire "play" once after 2s of active listening, then "complete"/"loop" as they happen.
   useEffect(() => {
@@ -232,6 +241,27 @@ export function FeedItem({
       >
         {muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
       </button>
+
+      {/* volume slider — sits just under the mute button */}
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="absolute left-4 top-[3.75rem] z-20 flex h-24 w-9 flex-col items-center justify-center rounded-full bg-black/40 px-1 py-2 backdrop-blur"
+      >
+        <input
+          type="range"
+          min={0}
+          max={1}
+          step={0.01}
+          value={muted ? 0 : volume}
+          onChange={(e) => {
+            const v = parseFloat(e.target.value);
+            setVolume(v);
+            if (v > 0 && muted) onToggleMute();
+          }}
+          aria-label="Volume"
+          className="h-20 w-1 cursor-pointer appearance-none rounded-full bg-white/20 accent-[var(--gold)] [writing-mode:vertical-lr] [direction:rtl] [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-gold"
+        />
+      </div>
 
       {/* right action rail */}
       <div className="pointer-events-auto absolute bottom-28 right-3 z-30 flex flex-col items-center gap-5 text-white">
