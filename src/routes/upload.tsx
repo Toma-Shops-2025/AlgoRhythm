@@ -56,6 +56,8 @@ function UploadPage() {
   const [generating, setGenerating] = useState(false);
   const [convertToVideo, setConvertToVideo] = useState(false);
   const [videoMode, setVideoMode] = useState<"visualizer" | "lyric">("visualizer");
+  const [ownsRights, setOwnsRights] = useState(false);
+  const [aiDisclosed, setAiDisclosed] = useState(false);
 
   const coverPreview = useMemo(() => (cover ? URL.createObjectURL(cover) : null), [cover]);
 
@@ -117,6 +119,8 @@ function UploadPage() {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!media || !type) return toast.error("Pick an audio or video file");
+    if (!ownsRights) return toast.error("Confirm you own the rights to this content");
+    if (!aiDisclosed) return toast.error("Confirm this was made with AI tools");
     if (type === "audio" && convertToVideo && videoMode === "visualizer" && !cover) {
       return toast.error("Converting to video needs a cover image — upload one or generate with AI");
     }
@@ -366,6 +370,34 @@ function UploadPage() {
             <input value={aiTools} onChange={(e) => setAiTools(e.target.value)} placeholder="Suno, Udio, Runway, Sora"
               className="w-full rounded-md border border-border bg-card px-3 py-2.5 text-sm outline-none focus:border-gold/50" />
           </Field>
+
+          <div className="space-y-2 rounded-md border border-gold/20 bg-card/30 p-3">
+            <label className="flex items-start gap-2 text-xs text-muted-foreground">
+              <input
+                type="checkbox"
+                checked={ownsRights}
+                onChange={(e) => setOwnsRights(e.target.checked)}
+                className="mt-0.5 accent-gold"
+              />
+              <span>
+                I own or have permission to share this content and any samples it uses. I understand
+                infringing posts can be removed under our{" "}
+                <Link to="/dmca" className="text-gold">DMCA policy</Link>.
+              </span>
+            </label>
+            <label className="flex items-start gap-2 text-xs text-muted-foreground">
+              <input
+                type="checkbox"
+                checked={aiDisclosed}
+                onChange={(e) => setAiDisclosed(e.target.checked)}
+                className="mt-0.5 accent-gold"
+              />
+              <span>
+                This was made with AI tools and I'll follow the{" "}
+                <Link to="/guidelines" className="text-gold">Community Guidelines</Link>.
+              </span>
+            </label>
+          </div>
 
           <button disabled={busy} type="submit"
             className="flex w-full items-center justify-center gap-2 rounded-md bg-gradient-gold px-4 py-3 text-sm font-medium text-primary-foreground shadow-[0_0_24px_-6px_var(--gold)] disabled:opacity-50">
