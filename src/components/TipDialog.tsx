@@ -84,7 +84,7 @@ export function TipDialog({
             />
           </div>
           <p className="text-[11px] text-muted-foreground">
-            95% goes to the creator. AlgoRhythm keeps a 5% platform fee.
+            85% goes to the creator. AlgoRhythm keeps a 15% platform fee.
           </p>
           <button
             onClick={start}
