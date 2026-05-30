@@ -52,8 +52,8 @@ export function getStripeErrorMessage(error: unknown): string {
   return 'Stripe request failed';
 }
 
-// AlgoRhythm platform takes 5% of tips and creator subscriptions.
-export const PLATFORM_FEE_BPS = 500; // 5%
+// AlgoRhythm platform takes 15% of tips and creator subscriptions.
+export const PLATFORM_FEE_BPS = 1500; // 15%
 
 export function splitPlatformFee(amountCents: number): { fee: number; net: number } {
   const fee = Math.round((amountCents * PLATFORM_FEE_BPS) / 10000);
