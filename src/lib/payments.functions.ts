@@ -89,8 +89,7 @@ export const createProCheckout = createServerFn({ method: "POST" })
         customer: customerId,
         metadata: { userId: context.userId, kind: "pro" },
         subscription_data: { metadata: { userId: context.userId, kind: "pro" } },
-        managed_payments: { enabled: true },
-      } as Stripe.Checkout.SessionCreateParams & { managed_payments: { enabled: boolean } });
+      } as Stripe.Checkout.SessionCreateParams);
       return { clientSecret: session.client_secret ?? "" };
     } catch (error) {
       return { error: getStripeErrorMessage(error) };
