@@ -74,9 +74,33 @@ async function handleEvent(event: Stripe.Event, env: StripeEnv, stripe: Stripe) 
       await upsertSubscription(sub, env);
       break;
     }
+    case "account.updated": {
+      const account = event.data.object as Stripe.Account;
+      await upsertConnectAccount(account, env);
+      break;
+    }
     default:
       break;
   }
+}
+
+async function upsertConnectAccount(account: Stripe.Account, env: StripeEnv) {
+  const userId = account.metadata?.userId;
+  if (!userId) return;
+  await supabaseAdmin.from("connected_accounts").upsert(
+    {
+      user_id: userId,
+      environment: env,
+      stripe_account_id: account.id,
+      charges_enabled: account.charges_enabled ?? false,
+      payouts_enabled: account.payouts_enabled ?? false,
+      details_submitted: account.details_submitted ?? false,
+      country: account.country ?? null,
+      default_currency: account.default_currency ?? null,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "user_id,environment" },
+  );
 }
 
 async function recordTip(session: Stripe.Checkout.Session, env: StripeEnv) {

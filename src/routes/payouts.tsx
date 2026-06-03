@@ -1,9 +1,17 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { AppShell } from "@/components/AppShell";
 import { useAuth } from "@/lib/auth";
 import { getMyEarnings } from "@/lib/earnings.functions";
+import {
+  getMyConnectStatus,
+  startConnectOnboarding,
+  refreshConnectStatus,
+  getConnectDashboardLink,
+} from "@/lib/connect.functions";
+import { getStripeEnvironment } from "@/lib/stripe";
+import { useState } from "react";
 
 export const Route = createFileRoute("/payouts")({
   head: () => ({
@@ -22,11 +30,52 @@ export const Route = createFileRoute("/payouts")({
 function PayoutsPage() {
   const { user } = useAuth();
   const fetchEarnings = useServerFn(getMyEarnings);
+  const fetchStatus = useServerFn(getMyConnectStatus);
+  const startOnboard = useServerFn(startConnectOnboarding);
+  const refreshStatus = useServerFn(refreshConnectStatus);
+  const getDashLink = useServerFn(getConnectDashboardLink);
+  const qc = useQueryClient();
+  const env = getStripeEnvironment();
+  const [busy, setBusy] = useState<null | "onboard" | "refresh" | "dash">(null);
+  const [error, setError] = useState<string | null>(null);
+
   const { data: earnings } = useQuery({
     queryKey: ["my-earnings"],
     queryFn: () => fetchEarnings(),
     enabled: !!user,
   });
+  const { data: status } = useQuery({
+    queryKey: ["connect-status", env],
+    queryFn: () => fetchStatus({ data: { environment: env } }),
+    enabled: !!user,
+  });
+
+  const onboard = async () => {
+    setBusy("onboard"); setError(null);
+    try {
+      const returnUrl = `${window.location.origin}/payouts?connect=return`;
+      const refreshUrl = `${window.location.origin}/payouts?connect=refresh`;
+      const res = await startOnboard({ data: { environment: env, returnUrl, refreshUrl } });
+      if ("error" in res) { setError(res.error); return; }
+      window.location.href = res.url;
+    } finally { setBusy(null); }
+  };
+  const refresh = async () => {
+    setBusy("refresh"); setError(null);
+    try {
+      await refreshStatus({ data: { environment: env } });
+      await qc.invalidateQueries({ queryKey: ["connect-status", env] });
+    } catch (e) { setError(e instanceof Error ? e.message : "Failed to refresh"); }
+    finally { setBusy(null); }
+  };
+  const openDash = async () => {
+    setBusy("dash"); setError(null);
+    try {
+      const res = await getDashLink({ data: { environment: env } });
+      if ("error" in res) { setError(res.error); return; }
+      window.open(res.url, "_blank", "noopener,noreferrer");
+    } finally { setBusy(null); }
+  };
 
   return (
     <AppShell>
@@ -43,11 +92,73 @@ function PayoutsPage() {
               <Stat label="Active subscribers" value={String(earnings?.activeSubCount ?? 0)} />
               <Stat label="Est. monthly sub net" value={fmt(earnings?.estMonthlySubNetCents ?? 0)} />
             </div>
-            <p className="mt-3 text-[11px] text-muted-foreground">
-              <strong className="text-foreground/90">Payouts launching soon.</strong> Your earnings are being tracked.
-              We're finalizing our payout processor onboarding (Stripe Connect) — once approved, you'll be able
-              to add a bank account and cash out. Estimated launch: late summer 2026.
-            </p>
+
+            <div className="mt-4 rounded-lg border border-border/60 bg-background/40 p-3">
+              <h3 className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Payout account</h3>
+              {!status?.hasAccount && (
+                <>
+                  <p className="mt-2 text-xs text-foreground/80">
+                    Set up your payout account to start receiving tips and subscriber payments directly to your bank.
+                  </p>
+                  <button
+                    onClick={onboard}
+                    disabled={busy === "onboard"}
+                    className="mt-3 w-full rounded-md bg-gradient-gold py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
+                  >
+                    {busy === "onboard" ? "Opening secure onboarding…" : "Set up payouts"}
+                  </button>
+                </>
+              )}
+              {status?.hasAccount && status.chargesEnabled && status.payoutsEnabled && (
+                <>
+                  <p className="mt-2 text-xs text-emerald-400">
+                    ✓ Active — tips and subscriber payments are being sent to your account.
+                  </p>
+                  <div className="mt-3 flex gap-2">
+                    <button
+                      onClick={openDash}
+                      disabled={busy === "dash"}
+                      className="flex-1 rounded-md border border-gold/40 py-2 text-sm text-gold disabled:opacity-50"
+                    >
+                      {busy === "dash" ? "Opening…" : "Open payout dashboard"}
+                    </button>
+                    <button
+                      onClick={refresh}
+                      disabled={busy === "refresh"}
+                      className="rounded-md border border-border px-3 py-2 text-sm disabled:opacity-50"
+                    >
+                      {busy === "refresh" ? "…" : "Refresh"}
+                    </button>
+                  </div>
+                </>
+              )}
+              {status?.hasAccount && !(status.chargesEnabled && status.payoutsEnabled) && (
+                <>
+                  <p className="mt-2 text-xs text-amber-400">
+                    Onboarding in progress. {status.detailsSubmitted
+                      ? "Stripe is reviewing your details — this usually takes a few minutes."
+                      : "You haven't finished entering your details yet."}
+                  </p>
+                  <div className="mt-3 flex gap-2">
+                    <button
+                      onClick={onboard}
+                      disabled={busy === "onboard"}
+                      className="flex-1 rounded-md bg-gradient-gold py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
+                    >
+                      {busy === "onboard" ? "Opening…" : "Continue onboarding"}
+                    </button>
+                    <button
+                      onClick={refresh}
+                      disabled={busy === "refresh"}
+                      className="rounded-md border border-border px-3 py-2 text-sm disabled:opacity-50"
+                    >
+                      {busy === "refresh" ? "…" : "Refresh"}
+                    </button>
+                  </div>
+                </>
+              )}
+              {error && <p className="mt-2 text-[11px] text-rose-400">{error}</p>}
+            </div>
           </div>
         )}
 

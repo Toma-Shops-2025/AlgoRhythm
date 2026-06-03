@@ -6,13 +6,34 @@ import {
   createStripeClient,
   getStripeErrorMessage,
   splitPlatformFee,
+  PLATFORM_FEE_BPS,
 } from "@/lib/stripe.server";
+import { supabaseAdmin } from "@/integrations/supabase/client.server";
 import Stripe from "stripe";
 
 type CheckoutResult = { clientSecret: string } | { error: string };
 type PortalResult = { url: string } | { error: string };
 
 const EnvSchema = z.enum(["sandbox", "live"]);
+
+async function getCreatorPayoutAccount(
+  creatorId: string,
+  env: StripeEnv,
+): Promise<{ stripeAccountId: string } | { error: string }> {
+  const { data } = await supabaseAdmin
+    .from("connected_accounts")
+    .select("stripe_account_id, charges_enabled")
+    .eq("user_id", creatorId)
+    .eq("environment", env)
+    .maybeSingle();
+  if (!data?.stripe_account_id) {
+    return { error: "This creator hasn't set up payouts yet. Ask them to complete payout onboarding." };
+  }
+  if (!data.charges_enabled) {
+    return { error: "This creator's payout account isn't fully active yet. Try again once they finish onboarding." };
+  }
+  return { stripeAccountId: data.stripe_account_id };
+}
 
 async function resolveOrCreateCustomer(
   stripe: Stripe,
@@ -68,8 +89,7 @@ export const createProCheckout = createServerFn({ method: "POST" })
         customer: customerId,
         metadata: { userId: context.userId, kind: "pro" },
         subscription_data: { metadata: { userId: context.userId, kind: "pro" } },
-        managed_payments: { enabled: true },
-      } as Stripe.Checkout.SessionCreateParams & { managed_payments: { enabled: boolean } });
+      } as Stripe.Checkout.SessionCreateParams);
       return { clientSecret: session.client_secret ?? "" };
     } catch (error) {
       return { error: getStripeErrorMessage(error) };
@@ -89,6 +109,8 @@ export const createCreatorSubCheckout = createServerFn({ method: "POST" })
     }
     try {
       const stripe = createStripeClient(data.environment);
+      const payout = await getCreatorPayoutAccount(data.creatorId, data.environment);
+      if ("error" in payout) return payout;
       const prices = await stripe.prices.list({ lookup_keys: ["creator_sub_monthly"] });
       if (!prices.data.length) throw new Error("Creator price not found");
       const price = prices.data[0];
@@ -105,9 +127,10 @@ export const createCreatorSubCheckout = createServerFn({ method: "POST" })
         metadata: { userId: context.userId, kind: "creator", creatorId: data.creatorId },
         subscription_data: {
           metadata: { userId: context.userId, kind: "creator", creatorId: data.creatorId },
+          application_fee_percent: PLATFORM_FEE_BPS / 100,
+          transfer_data: { destination: payout.stripeAccountId },
         },
-        managed_payments: { enabled: true },
-      } as Stripe.Checkout.SessionCreateParams & { managed_payments: { enabled: boolean } });
+      } as Stripe.Checkout.SessionCreateParams);
       return { clientSecret: session.client_secret ?? "" };
     } catch (error) {
       return { error: getStripeErrorMessage(error) };
@@ -137,6 +160,8 @@ export const createTipCheckout = createServerFn({ method: "POST" })
     }
     try {
       const stripe = createStripeClient(data.environment);
+      const payout = await getCreatorPayoutAccount(data.creatorId, data.environment);
+      if ("error" in payout) return payout;
       const customerId = await resolveOrCreateCustomer(stripe, {
         userId: context.userId,
         email: context.claims.email,
@@ -155,7 +180,11 @@ export const createTipCheckout = createServerFn({ method: "POST" })
         ui_mode: "embedded_page",
         return_url: data.returnUrl,
         customer: customerId,
-        payment_intent_data: { description: "AlgoRhythm tip" },
+        payment_intent_data: {
+          description: "AlgoRhythm tip",
+          application_fee_amount: fee,
+          transfer_data: { destination: payout.stripeAccountId },
+        },
         metadata: {
           userId: context.userId,
           kind: "tip",
