@@ -2,7 +2,7 @@
 # Usage: cd Desktop\algorhythm ; .\build-aab.ps1
 
 $ProjectPath  = "$env:USERPROFILE\Desktop\algorhythm"
-$KeystorePath = "$env:USERPROFILE\Downloads\Other\algorhythmAAB"
+$KeystorePath = "C:\Keys\algorhythm.jks"
 $KeyAlias     = "algorhythm1"
 $BumpVersion  = $true
 

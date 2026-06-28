@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as WelcomeRouteImport } from './routes/welcome'
 import { Route as UploadRouteImport } from './routes/upload'
 import { Route as TermsRouteImport } from './routes/terms'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
@@ -20,7 +21,6 @@ import { Route as PayoutsRouteImport } from './routes/payouts'
 import { Route as MeRouteImport } from './routes/me'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as GuidelinesRouteImport } from './routes/guidelines'
-import { Route as FeedRouteImport } from './routes/feed'
 import { Route as DmcaRouteImport } from './routes/dmca'
 import { Route as DiscoverRouteImport } from './routes/discover'
 import { Route as ContactRouteImport } from './routes/contact'
@@ -34,6 +34,11 @@ import { Route as ApiTranscribeLyricsRouteImport } from './routes/api/transcribe
 import { Route as LovableEmailQueueProcessRouteImport } from './routes/lovable/email/queue/process'
 import { Route as ApiPublicPaymentsWebhookRouteImport } from './routes/api/public/payments/webhook'
 
+const WelcomeRoute = WelcomeRouteImport.update({
+  id: '/welcome',
+  path: '/welcome',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const UploadRoute = UploadRouteImport.update({
   id: '/upload',
   path: '/upload',
@@ -87,11 +92,6 @@ const LoginRoute = LoginRouteImport.update({
 const GuidelinesRoute = GuidelinesRouteImport.update({
   id: '/guidelines',
   path: '/guidelines',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const FeedRoute = FeedRouteImport.update({
-  id: '/feed',
-  path: '/feed',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DmcaRoute = DmcaRouteImport.update({
@@ -164,7 +164,6 @@ export interface FileRoutesByFullPath {
   '/contact': typeof ContactRoute
   '/discover': typeof DiscoverRoute
   '/dmca': typeof DmcaRoute
-  '/feed': typeof FeedRoute
   '/guidelines': typeof GuidelinesRoute
   '/login': typeof LoginRoute
   '/me': typeof MeRoute
@@ -176,6 +175,7 @@ export interface FileRoutesByFullPath {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
   '/upload': typeof UploadRoute
+  '/welcome': typeof WelcomeRoute
   '/api/transcribe-lyrics': typeof ApiTranscribeLyricsRoute
   '/checkout/return': typeof CheckoutReturnRoute
   '/p/$id': typeof PIdRoute
@@ -190,7 +190,6 @@ export interface FileRoutesByTo {
   '/contact': typeof ContactRoute
   '/discover': typeof DiscoverRoute
   '/dmca': typeof DmcaRoute
-  '/feed': typeof FeedRoute
   '/guidelines': typeof GuidelinesRoute
   '/login': typeof LoginRoute
   '/me': typeof MeRoute
@@ -202,6 +201,7 @@ export interface FileRoutesByTo {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
   '/upload': typeof UploadRoute
+  '/welcome': typeof WelcomeRoute
   '/api/transcribe-lyrics': typeof ApiTranscribeLyricsRoute
   '/checkout/return': typeof CheckoutReturnRoute
   '/p/$id': typeof PIdRoute
@@ -217,7 +217,6 @@ export interface FileRoutesById {
   '/contact': typeof ContactRoute
   '/discover': typeof DiscoverRoute
   '/dmca': typeof DmcaRoute
-  '/feed': typeof FeedRoute
   '/guidelines': typeof GuidelinesRoute
   '/login': typeof LoginRoute
   '/me': typeof MeRoute
@@ -229,6 +228,7 @@ export interface FileRoutesById {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
   '/upload': typeof UploadRoute
+  '/welcome': typeof WelcomeRoute
   '/api/transcribe-lyrics': typeof ApiTranscribeLyricsRoute
   '/checkout/return': typeof CheckoutReturnRoute
   '/p/$id': typeof PIdRoute
@@ -245,7 +245,6 @@ export interface FileRouteTypes {
     | '/contact'
     | '/discover'
     | '/dmca'
-    | '/feed'
     | '/guidelines'
     | '/login'
     | '/me'
@@ -257,6 +256,7 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/terms'
     | '/upload'
+    | '/welcome'
     | '/api/transcribe-lyrics'
     | '/checkout/return'
     | '/p/$id'
@@ -271,7 +271,6 @@ export interface FileRouteTypes {
     | '/contact'
     | '/discover'
     | '/dmca'
-    | '/feed'
     | '/guidelines'
     | '/login'
     | '/me'
@@ -283,6 +282,7 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/terms'
     | '/upload'
+    | '/welcome'
     | '/api/transcribe-lyrics'
     | '/checkout/return'
     | '/p/$id'
@@ -297,7 +297,6 @@ export interface FileRouteTypes {
     | '/contact'
     | '/discover'
     | '/dmca'
-    | '/feed'
     | '/guidelines'
     | '/login'
     | '/me'
@@ -309,6 +308,7 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/terms'
     | '/upload'
+    | '/welcome'
     | '/api/transcribe-lyrics'
     | '/checkout/return'
     | '/p/$id'
@@ -324,7 +324,6 @@ export interface RootRouteChildren {
   ContactRoute: typeof ContactRoute
   DiscoverRoute: typeof DiscoverRoute
   DmcaRoute: typeof DmcaRoute
-  FeedRoute: typeof FeedRoute
   GuidelinesRoute: typeof GuidelinesRoute
   LoginRoute: typeof LoginRoute
   MeRoute: typeof MeRoute
@@ -336,6 +335,7 @@ export interface RootRouteChildren {
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   TermsRoute: typeof TermsRoute
   UploadRoute: typeof UploadRoute
+  WelcomeRoute: typeof WelcomeRoute
   ApiTranscribeLyricsRoute: typeof ApiTranscribeLyricsRoute
   CheckoutReturnRoute: typeof CheckoutReturnRoute
   PIdRoute: typeof PIdRoute
@@ -346,6 +346,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/welcome': {
+      id: '/welcome'
+      path: '/welcome'
+      fullPath: '/welcome'
+      preLoaderRoute: typeof WelcomeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/upload': {
       id: '/upload'
       path: '/upload'
@@ -421,13 +428,6 @@ declare module '@tanstack/react-router' {
       path: '/guidelines'
       fullPath: '/guidelines'
       preLoaderRoute: typeof GuidelinesRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/feed': {
-      id: '/feed'
-      path: '/feed'
-      fullPath: '/feed'
-      preLoaderRoute: typeof FeedRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/dmca': {
@@ -524,7 +524,6 @@ const rootRouteChildren: RootRouteChildren = {
   ContactRoute: ContactRoute,
   DiscoverRoute: DiscoverRoute,
   DmcaRoute: DmcaRoute,
-  FeedRoute: FeedRoute,
   GuidelinesRoute: GuidelinesRoute,
   LoginRoute: LoginRoute,
   MeRoute: MeRoute,
@@ -536,6 +535,7 @@ const rootRouteChildren: RootRouteChildren = {
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   TermsRoute: TermsRoute,
   UploadRoute: UploadRoute,
+  WelcomeRoute: WelcomeRoute,
   ApiTranscribeLyricsRoute: ApiTranscribeLyricsRoute,
   CheckoutReturnRoute: CheckoutReturnRoute,
   PIdRoute: PIdRoute,

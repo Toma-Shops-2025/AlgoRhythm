@@ -26,7 +26,7 @@ function ReturnPage() {
           {session_id ? "Your payment is being confirmed." : "Welcome back."}
         </p>
         <div className="mt-8 flex justify-center gap-3">
-          <Link to="/feed" className="rounded-full bg-gradient-gold px-5 py-2 text-sm text-primary-foreground">
+          <Link to="/" className="rounded-full bg-gradient-gold px-5 py-2 text-sm text-primary-foreground">
             Back to feed
           </Link>
           <Link to="/me" className="rounded-full border border-border px-5 py-2 text-sm">

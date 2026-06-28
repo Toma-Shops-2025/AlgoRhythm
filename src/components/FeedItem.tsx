@@ -68,6 +68,8 @@ export function FeedItem({
   onSave: () => void;
   muted: boolean;
   onToggleMute: () => void;
+  autoAdvance?: boolean;
+  onEnded?: () => void;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -142,6 +144,10 @@ export function FeedItem({
       // Loop event: a loop=true element resets to ~0 when it wraps around.
       if (!active) return;
       if (el.currentTime < 0.5 && reportedCompleteRef.current) {
+        if (autoAdvance) {
+          onEnded?.();
+          return;
+        }
         loopsRef.current += 1;
         if (loopsRef.current <= 5) {
           track({ data: { postId: post.id, event: "loop" } }).catch(() => {});
@@ -335,13 +341,19 @@ export function FeedItem({
       <div className="absolute inset-x-0 bottom-24 z-20 px-5 pb-2 pr-24 text-white">
         <div className="flex items-center gap-3 flex-wrap">
           {post.creator && (
-            <Link to="/u/$handle" params={{ handle: post.creator.handle }} className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                if (!user) return navigate({ to: "/welcome" });
+                navigate({ to: "/u/$handle", params: { handle: post.creator!.handle } });
+              }}
+              className="flex items-center gap-2"
+            >
               <Avatar url={post.creator.avatar_url} name={post.creator.display_name} />
-              <div className="leading-tight">
+              <div className="leading-tight text-left">
                 <div className="text-sm font-medium">@{post.creator.handle}</div>
                 <div className="text-[11px] text-white/70">{post.creator.display_name}</div>
               </div>
-            </Link>
+            </button>
           )}
           {!following && post.creator && (
             <button onClick={(e) => { e.stopPropagation(); onFollow(); }}

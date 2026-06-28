@@ -1,88 +1,187 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useServerFn } from "@tanstack/react-start";
+import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AppShell } from "@/components/AppShell";
-import { Wordmark } from "@/components/Logo";
-import { Sparkles } from "lucide-react";
-import bgLoop from "@/assets/bg-loop.mp4.asset.json";
+import { FeedItem, type FeedPost } from "@/components/FeedItem";
+import { CommentsSheet } from "@/components/CommentsSheet";
+import { getFeed } from "@/lib/feed.functions";
+import { toggleLike, toggleFollow, getMyInteractions } from "@/lib/social.functions";
+import { toggleSave } from "@/lib/saves.functions";
+import { useAuth } from "@/lib/auth";
+import { useNavigate } from "@tanstack/react-router";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
+      { title: "AlgoRhythm — AI music, made viral" },
+      { name: "description", content: "The vertical feed for AI-made music and music videos." },
+      { property: "og:title", content: "AlgoRhythm — AI music, made viral" },
+      { property: "og:description", content: "Swipe through AI-made tracks and music videos from creators worldwide." },
       { property: "og:url", content: "https://myalgorhythm.online/" },
     ],
     links: [{ rel: "canonical", href: "https://myalgorhythm.online/" }],
   }),
-  component: Index,
+  component: FeedPage,
 });
 
-function Index() {
+function FeedPage() {
+  const fetchFeed = useServerFn(getFeed);
+  const fetchInteractions = useServerFn(getMyInteractions);
+  const like = useServerFn(toggleLike);
+  const follow = useServerFn(toggleFollow);
+  const save = useServerFn(toggleSave);
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const qc = useQueryClient();
+
+  const [active, setActive] = useState(0);
+  const [muted, setMuted] = useState(true);
+  const [commentsFor, setCommentsFor] = useState<string | null>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
+    queryKey: ["feed", user?.id ?? null],
+    initialPageParam: null as string | null,
+    queryFn: ({ pageParam }) => fetchFeed({ data: { viewerId: user?.id ?? null, cursor: pageParam } }),
+    getNextPageParam: (lastPage) => lastPage.nextCursor,
+  });
+
+  const basePosts = useMemo(() => {
+    return (data?.pages.flatMap((page) => page.items) ?? []) as unknown as FeedPost[];
+  }, [data]);
+
+  // Map cycled IDs back to the original post id for interactions (legacy support if we loop)
+  const realId = (id: string) => id.split("__c")[0];
+
+  const { data: me } = useQuery({
+    queryKey: ["interactions", user?.id, basePosts.map((p) => p.id).join(",")],
+    queryFn: () =>
+      fetchInteractions({
+        data: {
+          postIds: basePosts.map((p) => p.id),
+          creatorIds: Array.from(new Set(basePosts.map((p) => p.creator_id))),
+        },
+      }),
+    enabled: !!user && basePosts.length > 0,
+  });
+
+  const likedIds = new Set(me?.likedPostIds ?? []);
+  const followingIds = new Set(me?.followingIds ?? []);
+  const savedIds = new Set(me?.savedPostIds ?? []);
+
+  // track which item is on screen
+  useEffect(() => {
+    const root = containerRef.current;
+    if (!root) return;
+    const obs = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((e) => {
+          if (e.isIntersecting && e.intersectionRatio > 0.7) {
+            setActive(Number((e.target as HTMLElement).dataset.idx));
+          }
+        });
+      },
+      { root, threshold: [0.7] },
+    );
+    root.querySelectorAll<HTMLElement>("[data-feed-item]").forEach((el) => obs.observe(el));
+    return () => obs.disconnect();
+  }, [basePosts]);
+
+  // Load more posts as the user approaches the end.
+  useEffect(() => {
+    if (basePosts.length === 0 || !hasNextPage || isFetchingNextPage) return;
+    if (active >= basePosts.length - 3) {
+      void fetchNextPage();
+    }
+  }, [active, basePosts.length, hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  const onLike = async (post: FeedPost) => {
+    if (!user) { navigate({ to: "/welcome" }); return; }
+    try {
+      const pid = realId(post.id);
+      const res = await like({ data: { postId: pid } });
+      qc.setQueryData(["interactions", user.id, basePosts.map((p) => p.id).join(",")], (old: any) => ({
+        likedPostIds: res.liked
+          ? [...(old?.likedPostIds ?? []), pid]
+          : (old?.likedPostIds ?? []).filter((id: string) => id !== pid),
+        followingIds: old?.followingIds ?? [],
+        savedPostIds: old?.savedPostIds ?? [],
+      }));
+    } catch (e) { toast.error((e as Error).message); }
+  };
+
+  const onFollow = async (post: FeedPost) => {
+    if (!user) { navigate({ to: "/welcome" }); return; }
+    if (!post.creator) return;
+    try {
+      await follow({ data: { targetUserId: post.creator.id } });
+      qc.invalidateQueries({ queryKey: ["interactions", user.id] });
+      toast.success(`Following @${post.creator.handle}`);
+    } catch (e) { toast.error((e as Error).message); }
+  };
+
+  const onSave = async (post: FeedPost) => {
+    if (!user) { navigate({ to: "/welcome" }); return; }
+    try {
+      const pid = realId(post.id);
+      const res = await save({ data: { postId: pid } });
+      qc.setQueryData(["interactions", user.id, basePosts.map((p) => p.id).join(",")], (old: any) => ({
+        likedPostIds: old?.likedPostIds ?? [],
+        followingIds: old?.followingIds ?? [],
+        savedPostIds: res.saved
+          ? [...(old?.savedPostIds ?? []), pid]
+          : (old?.savedPostIds ?? []).filter((id: string) => id !== pid),
+      }));
+      toast.success(res.saved ? "Saved to your library" : "Removed from library");
+    } catch (e) { toast.error((e as Error).message); }
+  };
+
   return (
     <AppShell>
-      <video
-        src={bgLoop.url}
-        autoPlay
-        loop
-        muted
-        playsInline
-        aria-hidden
-        className="pointer-events-none fixed inset-0 z-0 h-full w-full object-cover opacity-20"
-      />
-      <div aria-hidden className="pointer-events-none fixed inset-0 z-0 bg-background/55" />
-
-      <header className="flex items-center justify-between px-5 pt-6">
-        <Wordmark />
-        <a
-          href="/login"
-          className="text-xs uppercase tracking-[0.2em] text-muted-foreground hover:text-gold"
-        >
-          Sign in
-        </a>
-      </header>
-
-      <section className="px-6 pt-16 pb-10 text-center">
-        <div className="mx-auto mb-6 inline-flex items-center gap-2 rounded-full border border-gold/60 bg-card/90 px-3 py-1 text-[11px] uppercase tracking-[0.22em] text-gold-soft">
-          <Sparkles className="h-3 w-3" /> AI music, made viral
-        </div>
-        <h1 className="text-gradient-gold text-5xl leading-[1.05] tracking-tight drop-shadow-[0_2px_20px_rgba(0,0,0,0.8)]">
-          The vertical feed<br />for AI music creators.
-        </h1>
-        <p className="mx-auto mt-5 max-w-sm text-balance text-sm text-foreground/85 drop-shadow-[0_1px_8px_rgba(0,0,0,0.9)]">
-          Post your AI-made tracks and music videos. Get discovered. Earn from the people who love it.
-        </p>
-        <div className="mt-8 flex items-center justify-center gap-3">
-          <a
-            href="/signup"
-            className="rounded-md bg-gradient-gold px-5 py-3 text-sm font-medium text-primary-foreground shadow-[0_0_30px_-6px_var(--gold)]"
-          >
-            Create your profile
-          </a>
-          <a
-            href="/feed"
-            className="rounded-md border border-gold/40 bg-card/70 backdrop-blur-sm px-5 py-3 text-sm text-foreground hover:border-gold/70"
-          >
-            Watch the feed
-          </a>
-        </div>
-        <p className="mt-3 text-[11px] uppercase tracking-[0.2em] text-foreground/70">
-          No account needed to browse
-        </p>
-      </section>
-
-      <section className="mx-auto grid max-w-md gap-3 px-5 pb-12">
-        {[
-          { k: "01", t: "Audio + video, one feed", d: "Tracks auto-render a gold visualizer so they feel native next to videos." },
-          { k: "02", t: "Built to go viral", d: "A discovery algorithm that rewards new creators, not just established names." },
-          { k: "03", t: "Monetize from day one", d: "Tips, subscriptions, boosts, and sponsor matches — built in." },
-        ].map((f) => (
-          <article
-            key={f.k}
-            className="rounded-xl border border-gold/20 bg-card/95 p-5 shadow-[0_8px_30px_-12px_rgba(0,0,0,0.8)]"
-          >
-            <div className="text-[11px] tracking-[0.2em] text-gold">{f.k}</div>
-            <h2 className="text-gradient-gold mt-2 text-lg drop-shadow-[0_2px_12px_rgba(0,0,0,0.8)]">{f.t}</h2>
-            <p className="mt-1 text-sm text-foreground drop-shadow-[0_1px_6px_rgba(0,0,0,0.9)]">{f.d}</p>
-          </article>
+      <h1 className="sr-only">AI Music and Video Feed</h1>
+      <div
+        ref={containerRef}
+        className="h-dvh snap-y snap-mandatory overflow-y-scroll"
+        style={{ scrollbarWidth: "none" }}
+      >
+        {isLoading && (
+          <div className="grid h-dvh place-items-center text-sm text-muted-foreground">Loading the feed…</div>
+        )}
+        {!isLoading && basePosts.length === 0 && (
+          <div className="grid h-dvh place-items-center px-8 text-center">
+            <div>
+              <h2 className="text-2xl text-gradient-gold">The feed is empty</h2>
+              <p className="mt-2 text-sm text-muted-foreground">Be the first to drop a track or a video.</p>
+              <a href="/upload" className="mt-5 inline-block rounded-md bg-gradient-gold px-5 py-2.5 text-sm text-primary-foreground">Post something</a>
+            </div>
+          </div>
+        )}
+        {basePosts.map((post, idx) => (
+          <div key={`${post.id}-${idx}`} data-feed-item data-idx={idx}>
+            <FeedItem
+              post={post}
+              active={idx === active}
+              liked={likedIds.has(post.id)}
+              following={post.creator ? followingIds.has(post.creator.id) : false}
+              saved={savedIds.has(post.id)}
+              onLike={() => onLike(post)}
+              onFollow={() => onFollow(post)}
+              onComment={() => setCommentsFor(post.id)}
+              onSave={() => onSave(post)}
+              muted={muted}
+              onToggleMute={() => setMuted((m) => !m)}
+            />
+          </div>
         ))}
-      </section>
+        {isFetchingNextPage && (
+          <div className="grid h-20 place-items-center bg-black">
+             <div className="h-5 w-5 animate-spin rounded-full border-2 border-gold border-t-transparent" />
+          </div>
+        )}
+      </div>
+      <CommentsSheet postId={commentsFor} open={!!commentsFor} onClose={() => setCommentsFor(null)} />
     </AppShell>
   );
 }

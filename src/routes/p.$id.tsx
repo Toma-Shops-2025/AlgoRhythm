@@ -227,7 +227,7 @@ function PostPage() {
             </p>
             <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
               <button
-                onClick={() => navigate({ to: "/feed" })}
+                onClick={() => navigate({ to: "/" })}
                 className="inline-flex items-center justify-center gap-2 rounded-md bg-gradient-gold px-3 py-2 text-xs font-medium uppercase tracking-[0.15em] text-primary-foreground shadow-[0_0_18px_-6px_var(--gold)]"
               >
                 <ArrowRight className="h-3.5 w-3.5" /> Continue to feed

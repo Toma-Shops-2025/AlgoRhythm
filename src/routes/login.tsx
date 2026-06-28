@@ -33,17 +33,17 @@ function LoginPage() {
     setLoading(false);
     if (error) return toast.error(error.message);
     toast.success("Welcome back");
-    navigate({ to: "/feed" });
+    navigate({ to: "/" });
   };
 
   const onGoogle = async () => {
     setLoading(true);
     const res = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin + "/feed",
+      redirect_uri: window.location.origin + "/",
     });
     setLoading(false);
     if (res?.error) toast.error(res.error.message ?? "Google sign-in failed");
-    else if (!res?.redirected) navigate({ to: "/feed" });
+    else if (!res?.redirected) navigate({ to: "/" });
   };
 
   return (

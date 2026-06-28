@@ -21,50 +21,64 @@ export function PostGridItem({
   isOwner,
   onEdit,
   onDelete,
+  onClick,
 }: {
   post: GridPost;
   isOwner?: boolean;
   onEdit?: (p: GridPost) => void;
   onDelete?: (p: GridPost) => void;
+  onClick?: () => void;
 }) {
   const isVideo = post.type === "video";
   const [menuOpen, setMenuOpen] = useState(false);
 
+  const content = (
+    <>
+      {post.cover_url ? (
+        <img
+          src={post.cover_url}
+          className="absolute inset-0 h-full w-full object-cover"
+          alt={post.title}
+          loading="lazy"
+        />
+      ) : isVideo && post.media_url ? (
+        <video
+          src={`${post.media_url}#t=0.1`}
+          preload="metadata"
+          muted
+          playsInline
+          className="absolute inset-0 h-full w-full object-cover"
+        />
+      ) : (
+        <div className="absolute inset-0 bg-gradient-to-br from-card to-background" />
+      )}
+      {isVideo && (
+        <div className="pointer-events-none absolute right-1.5 top-1.5 grid h-5 w-5 place-items-center rounded-full bg-black/60 backdrop-blur">
+          <Play className="h-2.5 w-2.5 fill-white text-white" />
+        </div>
+      )}
+      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-1.5">
+        <div className="line-clamp-2 text-[10px] text-white">{post.title}</div>
+      </div>
+    </>
+  );
+
   return (
     <div className="relative aspect-[3/4] overflow-hidden rounded-md bg-card">
-      <Link
-        to="/p/$id"
-        params={{ id: post.id }}
-        className="absolute inset-0"
-        aria-label={post.title}
-      >
-        {post.cover_url ? (
-          <img
-            src={post.cover_url}
-            className="absolute inset-0 h-full w-full object-cover"
-            alt={post.title}
-            loading="lazy"
-          />
-        ) : isVideo && post.media_url ? (
-          <video
-            src={`${post.media_url}#t=0.1`}
-            preload="metadata"
-            muted
-            playsInline
-            className="absolute inset-0 h-full w-full object-cover"
-          />
-        ) : (
-          <div className="absolute inset-0 bg-gradient-to-br from-card to-background" />
-        )}
-        {isVideo && (
-          <div className="pointer-events-none absolute right-1.5 top-1.5 grid h-5 w-5 place-items-center rounded-full bg-black/60 backdrop-blur">
-            <Play className="h-2.5 w-2.5 fill-white text-white" />
-          </div>
-        )}
-        <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent p-1.5">
-          <div className="line-clamp-2 text-[10px] text-white">{post.title}</div>
-        </div>
-      </Link>
+      {onClick ? (
+        <button onClick={onClick} className="absolute inset-0 w-full text-left" aria-label={post.title}>
+          {content}
+        </button>
+      ) : (
+        <Link
+          to="/p/$id"
+          params={{ id: post.id }}
+          className="absolute inset-0"
+          aria-label={post.title}
+        >
+          {content}
+        </Link>
+      )}
       {isOwner && (
         <DropdownMenu open={menuOpen} onOpenChange={setMenuOpen}>
           <DropdownMenuTrigger asChild>

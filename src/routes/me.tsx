@@ -1,12 +1,14 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo, useRef } from "react";
 import { AppShell } from "@/components/AppShell";
 import { useAuth, signOut } from "@/lib/auth";
 import { getMyProfile, updateMyProfile, deletePost, updatePost } from "@/lib/posts.functions";
 import { deleteAccount } from "@/lib/account.functions";
 import { PostGridItem } from "@/components/PostGridItem";
+import { FeedItem, type FeedPost } from "@/components/FeedItem";
+import { CommentsSheet } from "@/components/CommentsSheet";
 import {
   Dialog,
   DialogContent,
@@ -29,7 +31,7 @@ import { getMyLibrary } from "@/lib/saves.functions";
 import { getStripeEnvironment } from "@/lib/stripe";
 import { useProSubscription } from "@/hooks/useSubscription";
 import { supabase } from "@/integrations/supabase/client";
-import { LogOut, Settings, Plus, Crown, Trash2, Camera, Bookmark, Grid3x3 } from "lucide-react";
+import { LogOut, Settings, Plus, Crown, Trash2, Camera, Bookmark, Grid3x3, ArrowLeft, Pencil, Loader2 } from "lucide-react";
 import { ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 
@@ -76,13 +78,17 @@ function MePage() {
   const [displayName, setDisplayName] = useState("");
   const [bio, setBio] = useState("");
   const [busy, setBusy] = useState(false);
-  const [editingPost, setEditingPost] = useState<{ id: string; title: string; description: string; tags: string } | null>(null);
+  const [editingPost, setEditingPost] = useState<{ id: string; title: string; description: string; tags: string; pinned_comment?: string } | null>(null);
   const [deletingPostId, setDeletingPostId] = useState<string | null>(null);
   const [postBusy, setPostBusy] = useState(false);
   const [deletingAccount, setDeletingAccount] = useState(false);
   const [accountBusy, setAccountBusy] = useState(false);
   const [confirmText, setConfirmText] = useState("");
   const [tab, setTab] = useState<"posts" | "library">("posts");
+  const [viewMode, setViewMode] = useState<"grid" | "feed">("grid");
+  const [activeIdx, setActiveIdx] = useState(0);
+  const [muted, setMuted] = useState(true);
+  const [commentsFor, setCommentsFor] = useState<string | null>(null);
 
   useEffect(() => { if (!loading && !user) navigate({ to: "/login" }); }, [loading, user, navigate]);
 
@@ -101,6 +107,11 @@ function MePage() {
   useEffect(() => {
     if (data?.profile) { setDisplayName(data.profile.display_name); setBio(data.profile.bio ?? ""); }
   }, [data]);
+
+  const shuffledLibrary = useMemo(() => {
+    if (!library?.posts) return [];
+    return [...library.posts].sort(() => Math.random() - 0.5);
+  }, [library]);
 
   const onAvatar = async (file: File) => {
     if (!user) return;
@@ -148,10 +159,11 @@ function MePage() {
           title: editingPost.title.trim(),
           description: editingPost.description,
           tags: tagList,
-        },
+          pinned_comment: editingPost.pinned_comment?.trim() || null
+        } as any,
       });
       qc.invalidateQueries({ queryKey: ["me"] });
-      qc.invalidateQueries({ queryKey: ["post", editingPost.id] });
+      qc.invalidateQueries({ queryKey: ["my-library"] });
       setEditingPost(null);
       toast.success("Post updated");
     } catch (e) {
@@ -178,6 +190,55 @@ function MePage() {
 
   if (!data?.profile) return <AppShell><div className="grid h-dvh place-items-center text-sm text-muted-foreground">Loading…</div></AppShell>;
   const p = data.profile;
+
+  if (viewMode === "feed") {
+    const feedItems = tab === "posts" ? data.posts : shuffledLibrary;
+    return (
+      <AppShell>
+        <div className="relative h-dvh w-full overflow-hidden bg-black">
+          <header className="absolute inset-x-0 top-0 z-30 flex items-center gap-3 px-4 pt-[calc(0.75rem+env(safe-area-inset-top))]">
+            <button onClick={() => setViewMode("grid")} className="flex h-9 w-9 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur"><ArrowLeft className="h-5 w-5" /></button>
+            <div className="flex-1 text-center"><p className="font-medium text-sm text-white drop-shadow">{tab === "posts" ? "Your Posts" : "Your Library (Shuffled)"}</p></div>
+            <div className="w-9" />
+          </header>
+          <div className="h-full snap-y snap-mandatory overflow-y-scroll no-scrollbar">
+            {feedItems.map((post: any, idx: number) => (
+              <div key={post.id} className="h-full w-full snap-start relative">
+                <FeedItem
+                  post={{ ...post, creator: tab === "posts" ? p : post.creator } as any}
+                  active={idx === activeIdx}
+                  liked={false}
+                  following={false}
+                  saved={tab === "library"}
+                  onLike={() => {}}
+                  onFollow={() => {}}
+                  onComment={() => setCommentsFor(post.id)}
+                  onSave={() => {}}
+                  muted={muted}
+                  onToggleMute={() => setMuted(!muted)}
+                  autoAdvance={tab === "library"}
+                  onEnded={() => {
+                    if (tab === "library" && idx < feedItems.length - 1) {
+                      setActiveIdx(idx + 1);
+                      const el = document.querySelectorAll("[data-idx]")[idx + 1];
+                      el?.scrollIntoView({ behavior: "smooth" });
+                    }
+                  }}
+                />
+                {tab === "posts" && (
+                  <div className="absolute right-3 top-1/2 -translate-y-1/2 z-30 flex flex-col gap-3">
+                    <button onClick={() => { setEditingPost({ id: post.id, title: post.title, description: post.description || "", tags: post.tags?.map((t: string) => `#${t}`).join(" ") || "", pinned_comment: post.pinned_comment || "" }); }} className="h-10 w-10 grid place-items-center rounded-full bg-black/40 text-white backdrop-blur border border-white/20"><Pencil className="h-5 w-5" /></button>
+                    <button onClick={() => setDeletingPostId(post.id)} className="h-10 w-10 grid place-items-center rounded-full bg-black/40 text-destructive backdrop-blur border border-destructive/20"><Trash2 className="h-5 w-5" /></button>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+        <CommentsSheet postId={commentsFor} open={!!commentsFor} onClose={() => setCommentsFor(null)} />
+      </AppShell>
+    );
+  }
 
   return (
     <AppShell>
@@ -300,17 +361,19 @@ function MePage() {
         </div>
         {tab === "posts" ? (
           <div className="mt-3 grid grid-cols-3 gap-1.5 pb-12">
-            {data.posts.map((post) => (
+            {data.posts.map((post, i) => (
               <PostGridItem
                 key={post.id}
                 post={post}
                 isOwner
+                onClick={() => { setActiveIdx(i); setViewMode("feed"); }}
                 onEdit={(pp) =>
                   setEditingPost({
                     id: pp.id,
                     title: pp.title,
                     description: (post.description as string | null) ?? "",
                     tags: ((post.tags as string[] | null) ?? []).map((t) => `#${t}`).join(" "),
+                    pinned_comment: (post as any).pinned_comment || ""
                   })
                 }
                 onDelete={(pp) => setDeletingPostId(pp.id)}
@@ -322,8 +385,8 @@ function MePage() {
           </div>
         ) : (
           <div className="mt-3 grid grid-cols-3 gap-1.5 pb-12">
-            {(library?.posts ?? []).map((post) => post && (
-              <PostGridItem key={post.id} post={post} />
+            {shuffledLibrary.map((post, i) => post && (
+              <PostGridItem key={post.id} post={post} onClick={() => { setActiveIdx(i); setViewMode("feed"); }} />
             ))}
             {library && library.posts.length === 0 && (
               <p className="col-span-3 py-8 text-center text-sm text-muted-foreground">
@@ -385,6 +448,16 @@ function MePage() {
                   value={editingPost.tags}
                   onChange={(e) => setEditingPost({ ...editingPost, tags: e.target.value })}
                   placeholder="#chill #lofi"
+                  className="w-full rounded-md border border-border bg-card px-3 py-2 text-sm outline-none focus:border-gold/50"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-[11px] uppercase tracking-[0.18em] text-muted-foreground">Pinned Comment</label>
+                <textarea
+                  rows={2}
+                  value={editingPost.pinned_comment}
+                  onChange={(e) => setEditingPost({ ...editingPost, pinned_comment: e.target.value })}
+                  placeholder="Pin a comment to the top..."
                   className="w-full rounded-md border border-border bg-card px-3 py-2 text-sm outline-none focus:border-gold/50"
                 />
               </div>

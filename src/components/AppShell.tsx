@@ -21,7 +21,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="relative min-h-dvh text-foreground">
       <main className="relative z-10 pb-20">{children}</main>
-      <Footer />
       <BottomNav />
     </div>
   );
@@ -29,7 +28,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
 function Footer() {
   return (
-    <footer className="border-t border-border/40 px-5 py-4 text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+    <footer className="border-t border-border/40 px-5 py-4 text-[10px] uppercase tracking-[0.18em] text-muted-foreground bg-background/85">
       <div className="mx-auto flex max-w-md flex-wrap items-center justify-center gap-x-3 gap-y-1">
         <a href="/terms" className="hover:text-foreground">Terms</a>
         <a href="/privacy" className="hover:text-foreground">Privacy</a>
@@ -50,8 +49,7 @@ function BottomNav() {
     <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border/60 bg-background/85 backdrop-blur-xl">
       <ul className="mx-auto grid max-w-md grid-cols-4 px-2 pb-[env(safe-area-inset-bottom)]">
         {items.map(({ to, label, icon: Icon, primary, authed }) => {
-          let target = authed && !user ? "/login" : to;
-          if (to === "/" && user) target = "/feed";
+          const target = authed && !user ? "/login" : to;
           const active = pathname === to;
           return (
             <li key={to} className="flex">

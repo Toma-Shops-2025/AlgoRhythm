@@ -46,7 +46,7 @@ function SignupPage() {
       email,
       password,
       options: {
-        emailRedirectTo: window.location.origin + "/feed",
+        emailRedirectTo: window.location.origin + "/",
         data: {
           display_name: displayName,
           birth_year: yr,
@@ -57,20 +57,30 @@ function SignupPage() {
     });
     setLoading(false);
     if (error) return toast.error(error.message);
-    if (!data.session) {
-      toast.success("Check your email to confirm");
+
+    // Auto-login after signup
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (signInError) {
+      toast.success("Account created!", {
+        description: "Please sign in with your new credentials.",
+      });
+      navigate({ to: "/login" });
     } else {
       toast.success("Welcome to AlgoRhythm");
-      navigate({ to: "/feed" });
+      navigate({ to: "/" });
     }
   };
 
   const onGoogle = async () => {
     const res = await lovable.auth.signInWithOAuth("google", {
-      redirect_uri: window.location.origin + "/feed",
+      redirect_uri: window.location.origin + "/",
     });
     if (res?.error) toast.error(res.error.message ?? "Google sign-in failed");
-    else if (!res?.redirected) navigate({ to: "/feed" });
+    else if (!res?.redirected) navigate({ to: "/" });
   };
 
   return (
