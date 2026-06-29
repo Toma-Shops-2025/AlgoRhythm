@@ -56,6 +56,8 @@ export function FeedItem({
   onSave,
   muted,
   onToggleMute,
+  autoAdvance,
+  onEnded,
 }: {
   post: FeedPost;
   active: boolean;
@@ -140,14 +142,18 @@ export function FeedItem({
         track({ data: { postId: post.id, event: "complete" } }).catch(() => {});
       }
     };
-    const onSeekedToStart = () => {
-      // Loop event: a loop=true element resets to ~0 when it wraps around.
+
+    const onEndEvent = () => {
       if (!active) return;
+      if (autoAdvance) {
+        onEnded?.();
+      }
+    };
+
+    const onSeekedToStart = () => {
+      // Legacy Loop event detection if loop=true
+      if (!active || autoAdvance) return;
       if (el.currentTime < 0.5 && reportedCompleteRef.current) {
-        if (autoAdvance) {
-          onEnded?.();
-          return;
-        }
         loopsRef.current += 1;
         if (loopsRef.current <= 5) {
           track({ data: { postId: post.id, event: "loop" } }).catch(() => {});
@@ -155,13 +161,16 @@ export function FeedItem({
         reportedCompleteRef.current = false;
       }
     };
+
     el.addEventListener("timeupdate", onTime);
     el.addEventListener("seeking", onSeekedToStart);
+    el.addEventListener("ended", onEndEvent);
     return () => {
       el.removeEventListener("timeupdate", onTime);
       el.removeEventListener("seeking", onSeekedToStart);
+      el.removeEventListener("ended", onEndEvent);
     };
-  }, [active, post.id, post.type, track]);
+  }, [active, post.id, post.type, track, autoAdvance, onEnded]);
 
   const togglePlay = () => {
     const el = post.type === "video" ? videoRef.current : audioRef.current;
@@ -206,12 +215,12 @@ export function FeedItem({
           src={post.media_url}
           poster={post.cover_url ?? undefined}
           playsInline
-          loop
+          loop={!autoAdvance}
           className="absolute inset-0 h-full w-full object-cover"
         />
       ) : (
         <>
-          <audio ref={audioRef} src={post.media_url} loop crossOrigin="anonymous" />
+          <audio ref={audioRef} src={post.media_url} loop={!autoAdvance} crossOrigin="anonymous" />
           <AudioVisualizer audio={audioRef.current} playing={playing && active} coverUrl={post.cover_url} />
         </>
       )}

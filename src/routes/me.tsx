@@ -89,6 +89,7 @@ function MePage() {
   const [activeIdx, setActiveIdx] = useState(0);
   const [muted, setMuted] = useState(true);
   const [commentsFor, setCommentsFor] = useState<string | null>(null);
+  const feedContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => { if (!loading && !user) navigate({ to: "/login" }); }, [loading, user, navigate]);
 
@@ -112,6 +113,10 @@ function MePage() {
     if (!library?.posts) return [];
     return [...library.posts].sort(() => Math.random() - 0.5);
   }, [library]);
+
+  const feedItems = useMemo(() => {
+    return tab === "posts" ? (data?.posts ?? []) : shuffledLibrary;
+  }, [tab, data?.posts, shuffledLibrary]);
 
   const onAvatar = async (file: File) => {
     if (!user) return;
@@ -188,11 +193,36 @@ function MePage() {
     }
   };
 
+  // Sync scroll position when entering feed mode
+  useEffect(() => {
+    if (viewMode === "feed" && feedContainerRef.current) {
+      const target = feedContainerRef.current.children[activeIdx] as HTMLElement;
+      target?.scrollIntoView({ behavior: "auto" });
+    }
+  }, [viewMode, activeIdx]);
+
+  // Track which item is on screen during manual scroll
+  useEffect(() => {
+    const root = feedContainerRef.current;
+    if (!root || viewMode !== "feed") return;
+    const obs = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((e) => {
+          if (e.isIntersecting && e.intersectionRatio > 0.7) {
+            setActiveIdx(Number((e.target as HTMLElement).dataset.idx));
+          }
+        });
+      },
+      { root, threshold: [0.7] },
+    );
+    root.querySelectorAll<HTMLElement>("[data-idx]").forEach((el) => obs.observe(el));
+    return () => obs.disconnect();
+  }, [viewMode, feedItems]);
+
   if (!data?.profile) return <AppShell><div className="grid h-dvh place-items-center text-sm text-muted-foreground">Loading…</div></AppShell>;
   const p = data.profile;
 
   if (viewMode === "feed") {
-    const feedItems = tab === "posts" ? data.posts : shuffledLibrary;
     return (
       <AppShell>
         <div className="relative h-dvh w-full overflow-hidden bg-black">
@@ -201,9 +231,9 @@ function MePage() {
             <div className="flex-1 text-center"><p className="font-medium text-sm text-white drop-shadow">{tab === "posts" ? "Your Posts" : "Your Library (Shuffled)"}</p></div>
             <div className="w-9" />
           </header>
-          <div className="h-full snap-y snap-mandatory overflow-y-scroll no-scrollbar">
+          <div ref={feedContainerRef} className="h-full snap-y snap-mandatory overflow-y-scroll no-scrollbar">
             {feedItems.map((post: any, idx: number) => (
-              <div key={post.id} className="h-full w-full snap-start relative">
+              <div key={`${post.id}-${idx}`} data-idx={idx} className="h-full w-full snap-start relative">
                 <FeedItem
                   post={{ ...post, creator: tab === "posts" ? p : post.creator } as any}
                   active={idx === activeIdx}
@@ -219,9 +249,10 @@ function MePage() {
                   autoAdvance={tab === "library"}
                   onEnded={() => {
                     if (tab === "library" && idx < feedItems.length - 1) {
-                      setActiveIdx(idx + 1);
-                      const el = document.querySelectorAll("[data-idx]")[idx + 1];
-                      el?.scrollIntoView({ behavior: "smooth" });
+                      const next = idx + 1;
+                      setActiveIdx(next);
+                      const target = feedContainerRef.current?.children[next] as HTMLElement;
+                      target?.scrollIntoView({ behavior: "smooth" });
                     }
                   }}
                 />
