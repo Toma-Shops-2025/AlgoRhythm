@@ -105,13 +105,14 @@ export const deletePost = createServerFn({ method: "POST" })
 export const updatePost = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator(
-    (input: { id: string; title?: string; description?: string; tags?: string[] }) =>
+    (input: { id: string; title?: string; description?: string; tags?: string[]; pinned_comment?: string | null }) =>
       z
         .object({
           id: z.string().uuid(),
           title: z.string().min(1).max(140).optional(),
           description: z.string().max(2000).optional(),
           tags: z.array(z.string().min(1).max(40)).max(12).optional(),
+          pinned_comment: z.string().max(1000).nullish(),
         })
         .parse(input),
   )

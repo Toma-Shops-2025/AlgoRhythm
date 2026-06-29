@@ -77,20 +77,37 @@ export const getComments = createServerFn({ method: "GET" })
     z.object({ postId: z.string().uuid() }).parse(input),
   )
   .handler(async ({ data }) => {
-    const { data: comments } = await supabaseAdmin
-      .from("comments")
-      .select("id, body, created_at, user_id")
-      .eq("post_id", data.postId)
-      .order("created_at", { ascending: false })
-      .limit(100);
+    const [{ data: post }, { data: comments }] = await Promise.all([
+      supabaseAdmin.from("posts").select("pinned_comment, creator_id").eq("id", data.postId).maybeSingle(),
+      supabaseAdmin
+        .from("comments")
+        .select("id, body, created_at, user_id")
+        .eq("post_id", data.postId)
+        .order("created_at", { ascending: false })
+        .limit(100)
+    ]);
+
     const userIds = Array.from(new Set((comments ?? []).map((c) => c.user_id)));
+    if (post?.creator_id) userIds.push(post.creator_id);
+
     const { data: profiles } = await supabaseAdmin
       .from("profiles")
       .select("id, handle, display_name, avatar_url")
       .in("id", userIds.length ? userIds : ["00000000-0000-0000-0000-000000000000"]);
+
     const byId = new Map((profiles ?? []).map((p) => [p.id, p]));
+
+    let pinned = null;
+    if (post?.pinned_comment && post.creator_id) {
+      pinned = {
+        body: post.pinned_comment,
+        user: byId.get(post.creator_id) ?? null
+      };
+    }
+
     return {
       comments: (comments ?? []).map((c) => ({ ...c, user: byId.get(c.user_id) ?? null })),
+      pinned
     };
   });
 
