@@ -38,6 +38,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { SITE_URL, SITE_NAME, buildProfileTitle, buildProfileDescription, absUrl } from "@/lib/seo";
 
@@ -165,7 +166,7 @@ function ProfilePage() {
                 <FeedItem post={{ ...post, creator: p } as any} active={idx === activeIdx} liked={false} following={isFollowing} saved={false} onLike={() => {}} onFollow={() => {}} onComment={() => setCommentsFor(post.id)} onSave={() => {}} muted={muted} onToggleMute={() => setMuted(!muted)} />
                 {isOwner && (
                   <div className="absolute right-3 top-1/2 -translate-y-1/2 z-30 flex flex-col gap-3">
-                    <button onClick={() => { setEditingPost(post); setEditTitle(post.title); setEditDesc(post.description || ""); setEditTags(post.tags?.map((t: string) => `#${t}`).join(" ") || ""); setEditPinned((post as any).pinned_comment || ""); }} className="h-10 w-10 grid place-items-center rounded-full bg-black/40 text-white backdrop-blur border border-white/20"><Pencil className="h-5 w-5" /></button>
+                    <button onClick={() => { setEditingPost(post); setEditTitle(post.title); setEditDesc((post as any).description || ""); setEditTags((post as any).tags?.map((t: string) => `#${t}`).join(" ") || ""); setEditPinned((post as any).pinned_comment || ""); }} className="h-10 w-10 grid place-items-center rounded-full bg-black/40 text-white backdrop-blur border border-white/20"><Pencil className="h-5 w-5" /></button>
                     <button onClick={() => setDeletingId(post.id)} className="h-10 w-10 grid place-items-center rounded-full bg-black/40 text-destructive backdrop-blur border border-destructive/20"><Trash2 className="h-5 w-5" /></button>
                   </div>
                 )}
