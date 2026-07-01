@@ -14,6 +14,30 @@ export type Database = {
   }
   public: {
     Tables: {
+      app_ratings: {
+        Row: {
+          comment: string | null
+          created_at: string
+          stars: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          comment?: string | null
+          created_at?: string
+          stars: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          comment?: string | null
+          created_at?: string
+          stars?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       blocks: {
         Row: {
           blocked_id: string
@@ -252,6 +276,7 @@ export type Database = {
           like_count: number
           loop_count: number
           media_url: string
+          pinned_comment: string | null
           play_count: number
           save_count: number
           tags: string[]
@@ -274,6 +299,7 @@ export type Database = {
           like_count?: number
           loop_count?: number
           media_url: string
+          pinned_comment?: string | null
           play_count?: number
           save_count?: number
           tags?: string[]
@@ -296,6 +322,7 @@ export type Database = {
           like_count?: number
           loop_count?: number
           media_url?: string
+          pinned_comment?: string | null
           play_count?: number
           save_count?: number
           tags?: string[]
@@ -592,6 +619,24 @@ export type Database = {
         }
         Relationships: []
       }
+      wallet_credits: {
+        Row: {
+          balance_cents: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          balance_cents?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          balance_cents?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -601,6 +646,7 @@ export type Database = {
         Args: { message_id: number; queue_name: string }
         Returns: boolean
       }
+      email_queue_dispatch: { Args: never; Returns: undefined }
       enqueue_email: {
         Args: { payload: Json; queue_name: string }
         Returns: number
