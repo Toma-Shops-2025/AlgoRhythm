@@ -17,7 +17,7 @@ export const Route = createFileRoute("/pricing")({
       { title: "AlgoRhythm Pro — Pricing" },
       { name: "description", content: "Go Pro on AlgoRhythm for ad-free listening, higher quality, and exclusive feeds." },
       { property: "og:title", content: "AlgoRhythm Pro" },
-      { property: "og:description", content: "$4.99/mo or $49.99/yr — support the platform and unlock Pro." },
+      { property: "og:description", content: "$4.99/mo or $29.99/yr — support the platform and unlock Pro." },
     ],
     links: [{ rel: "canonical", href: "https://myalgorhythm.online/pricing" }],
   }),
@@ -98,9 +98,9 @@ function PricingPage() {
               className="rounded-xl bg-gradient-gold px-5 py-4 text-left text-primary-foreground">
               <div className="flex items-baseline justify-between">
                 <span className="font-semibold">Yearly</span>
-                <span className="text-lg font-bold">$49.99<span className="text-xs font-normal">/yr</span></span>
+                <span className="text-lg font-bold">$29.99<span className="text-xs font-normal">/yr</span></span>
               </div>
-              <div className="text-xs opacity-80">Save 16% — best value</div>
+              <div className="text-xs opacity-80">Save 50% — best value</div>
             </button>
             <button onClick={() => start("pro_monthly")}
               className="rounded-xl border border-border px-5 py-4 text-left">
