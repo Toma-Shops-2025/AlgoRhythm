@@ -2,6 +2,16 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
 
+/** Fisher–Yates shuffle (returns a new array, does not mutate input). */
+function shuffle<T>(input: T[]): T[] {
+  const arr = [...input];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
 export const getFeed = createServerFn({ method: "GET" })
   .inputValidator(
     (input: { cursor?: string | null; limit?: number; viewerId?: string | null; tag?: string | null; aiTool?: string | null } | undefined) =>
@@ -54,12 +64,6 @@ export const getFeed = createServerFn({ method: "GET" })
     const byId = new Map((creators ?? []).map((c) => [c.id, c]));
 
     // Retention-weighted ranking with discovery sandbox boost.
-    // Score combines:
-    //   - recency decay (~7-day half-life)
-    //   - audio retention (complete + loop rate per play)
-    //   - high-intent engagement (saves > likes > comments)
-    //   - sandbox boost: new posts (<24h) with <500 views get a multiplier
-    //     so cold-start content has a fair shot in the shuffle.
     const now = Date.now();
     const scored = (posts ?? []).map((p) => {
       const ageHours = (now - new Date(p.created_at).getTime()) / 36e5;
@@ -74,11 +78,15 @@ export const getFeed = createServerFn({ method: "GET" })
       const score = (recency * (1 + retention * 2) + Math.log1p(engagement) * 0.4) * sandbox;
       return { p, score };
     });
+
+    // We rank by score, but then shuffle the top results so it feels fresh every time
+    // instead of showing them in a predictable order.
     scored.sort((a, b) => b.score - a.score);
     const ranked = scored.map((s) => s.p);
+    const finalPosts = shuffle(ranked);
 
     return {
-      items: ranked.map((p) => ({ ...p, creator: byId.get(p.creator_id) ?? null })),
+      items: finalPosts.map((p) => ({ ...p, creator: byId.get(p.creator_id) ?? null })),
       nextCursor: posts && posts.length === limit ? posts[posts.length - 1].created_at : null,
     };
   });
