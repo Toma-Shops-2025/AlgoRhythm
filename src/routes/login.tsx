@@ -47,7 +47,7 @@ function LoginPage() {
   };
 
   return (
-    <div className="min-h-dvh bg-background text-foreground">
+    <div className="min-h-screen bg-background text-foreground">
       <header className="px-5 pt-6">
         <Link to="/"><Wordmark /></Link>
       </header>
@@ -84,3 +84,4 @@ function LoginPage() {
     </div>
   );
 }
+

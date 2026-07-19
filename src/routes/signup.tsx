@@ -84,7 +84,7 @@ function SignupPage() {
   };
 
   return (
-    <div className="min-h-dvh bg-background text-foreground">
+    <div className="min-h-screen bg-background text-foreground">
       <header className="px-5 pt-6"><Link to="/"><Wordmark /></Link></header>
       <main className="mx-auto mt-10 max-w-sm px-6">
         <h1 className="text-3xl tracking-tight text-gradient-gold">Create your profile</h1>
@@ -147,3 +147,4 @@ function SignupPage() {
     </div>
   );
 }
+
