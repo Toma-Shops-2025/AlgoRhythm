@@ -25,7 +25,6 @@ export const getFeed = createServerFn({ method: "GET" })
   .handler(async ({ data }) => {
     const limit = data.limit ?? 60;
 
-    // Simple query first to ensure we get results
     let q = supabaseAdmin
       .from("posts")
       .select(`
@@ -57,7 +56,6 @@ export const getFeed = createServerFn({ method: "GET" })
 
     const byId = new Map((creators ?? []).map((c) => [c.id, c]));
 
-    // Return the posts immediately, bypassing heavy scoring if it might fail
     const finalItems = posts.map((p) => ({
         ...p,
         creator: byId.get(p.creator_id) ?? { display_name: "Creator", handle: "user" }
@@ -67,4 +65,83 @@ export const getFeed = createServerFn({ method: "GET" })
       items: shuffle(finalItems),
       nextCursor: posts.length === limit ? posts[posts.length - 1].created_at : null,
     };
+  });
+
+export const getPostById = createServerFn({ method: "GET" })
+  .inputValidator((input: { id: string }) => z.object({ id: z.string().uuid() }).parse(input))
+  .handler(async ({ data }) => {
+    const { data: post, error } = await supabaseAdmin
+      .from("posts")
+      .select("*")
+      .eq("id", data.id)
+      .eq("is_published", true)
+      .maybeSingle();
+    if (error) throw new Error(error.message);
+    if (!post) return { post: null, creator: null };
+    const { data: creator } = await supabaseAdmin
+      .from("profiles")
+      .select("id, handle, display_name, avatar_url, follower_count, bio")
+      .eq("id", post.creator_id)
+      .maybeSingle();
+    return { post, creator };
+  });
+
+export const getProfileByHandle = createServerFn({ method: "GET" })
+  .inputValidator((input: { handle: string }) =>
+    z.object({ handle: z.string().min(1).max(64) }).parse(input),
+  )
+  .handler(async ({ data }) => {
+    const { data: profile } = await supabaseAdmin
+      .from("profiles")
+      .select("id, handle, display_name, avatar_url, bio, links, follower_count, following_count, post_count, created_at")
+      .eq("handle", data.handle)
+      .maybeSingle();
+    if (!profile) return { profile: null, posts: [] };
+    const { data: posts } = await supabaseAdmin
+      .from("posts")
+      .select("id, type, cover_url, media_url, title, like_count, view_count, created_at")
+      .eq("creator_id", profile.id)
+      .eq("is_published", true)
+      .order("created_at", { ascending: false })
+      .limit(60);
+    return { profile, posts: posts ?? [] };
+  });
+
+export const getCreatorPostIds = createServerFn({ method: "GET" })
+  .inputValidator((input: { creatorId: string }) =>
+    z.object({ creatorId: z.string().uuid() }).parse(input),
+  )
+  .handler(async ({ data }) => {
+    const { data: posts } = await supabaseAdmin
+      .from("posts")
+      .select("id")
+      .eq("creator_id", data.creatorId)
+      .eq("is_published", true)
+      .order("created_at", { ascending: false })
+      .limit(200);
+    return { ids: (posts ?? []).map((p) => p.id) };
+  });
+
+export const searchAll = createServerFn({ method: "GET" })
+  .inputValidator((input: { q: string }) =>
+    z.object({ q: z.string().min(1).max(80) }).parse(input),
+  )
+  .handler(async ({ data }) => {
+    const safe = data.q.replace(/[^\p{L}\p{N}\s]/gu, "").trim();
+    if (!safe) return { posts: [], profiles: [] };
+    const term = `%${safe}%`;
+    const [{ data: posts }, { data: profiles }] = await Promise.all([
+      supabaseAdmin
+        .from("posts")
+        .select("id, title, type, cover_url, media_url, creator_id, like_count")
+        .eq("is_published", true)
+        .ilike("title", term)
+        .limit(20),
+      supabaseAdmin
+        .from("profiles")
+        .select("id, handle, display_name, avatar_url, follower_count")
+        .or(`handle.ilike.${term},display_name.ilike.${term}`)
+        .limit(20),
+    ]);
+    return { posts: posts ?? [], profiles: profiles ?? [] };
   });
