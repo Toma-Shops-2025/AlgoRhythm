@@ -1,185 +1,135 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useServerFn } from "@tanstack/react-start";
-import { useInfiniteQuery, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import { AppShell } from "@/components/AppShell";
 import { FeedItem, type FeedPost } from "@/components/FeedItem";
 import { CommentsSheet } from "@/components/CommentsSheet";
-import { getFeed } from "@/lib/feed.functions";
-import { toggleLike, toggleFollow, getMyInteractions } from "@/lib/social.functions";
-import { toggleSave } from "@/lib/saves.functions";
+import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/")({
-  head: () => ({
-    meta: [
-      { title: "AlgoRhythm — AI music, made viral" },
-      { name: "description", content: "The vertical feed for AI-made music and music videos." },
-      { property: "og:title", content: "AlgoRhythm — AI music, made viral" },
-      { property: "og:description", content: "Swipe through AI-made tracks and music videos from creators worldwide." },
-      { property: "og:url", content: "https://myalgorhythm.online/" },
-    ],
-    links: [{ rel: "canonical", href: "https://myalgorhythm.online/" }],
-  }),
   component: FeedPage,
 });
 
 function FeedPage() {
-  const fetchFeed = useServerFn(getFeed);
-  const fetchInteractions = useServerFn(getMyInteractions);
-  const like = useServerFn(toggleLike);
-  const follow = useServerFn(toggleFollow);
-  const save = useServerFn(toggleSave);
   const { user } = useAuth();
   const navigate = useNavigate();
-  const qc = useQueryClient();
-
   const [active, setActive] = useState(0);
   const [muted, setMuted] = useState(true);
   const [commentsFor, setCommentsFor] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const { data, isLoading, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
-    queryKey: ["feed", user?.id ?? null],
-    initialPageParam: null as string | null,
-    queryFn: ({ pageParam }) => fetchFeed({ data: { viewerId: user?.id ?? null, cursor: pageParam } }),
-    getNextPageParam: (lastPage) => lastPage.nextCursor,
+  // DIRECT CLIENT-SIDE FETCH (Reliable like ViralSnap)
+  const { data, isLoading, error, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
+    queryKey: ["feed", "direct"],
+    initialPageParam: 0,
+    queryFn: async ({ pageParam = 0 }) => {
+      console.log("Feed: Fetching page", pageParam);
+      const pageSize = 12;
+      const { data: posts, error: postError } = await supabase
+        .from("posts")
+        .select(`
+            *,
+            creator:profiles!posts_creator_id_fkey (
+                id, handle, display_name, avatar_url
+            )
+        `)
+        .eq("is_published", true)
+        .order("created_at", { ascending: false })
+        .range(pageParam * pageSize, (pageParam + 1) * pageSize - 1);
+
+      if (postError) throw postError;
+      return {
+          items: posts || [],
+          nextPage: pageParam + 1,
+          hasMore: (posts || []).length === pageSize
+      };
+    },
+    getNextPageParam: (lastPage) => lastPage.hasMore ? lastPage.nextPage : undefined,
   });
 
   const basePosts = useMemo(() => {
     return (data?.pages.flatMap((page) => page.items) ?? []) as unknown as FeedPost[];
   }, [data]);
 
-  // Map cycled IDs back to the original post id for interactions (legacy support if we loop)
-  const realId = (id: string) => id.split("__c")[0];
-
-  const { data: me } = useQuery({
-    queryKey: ["interactions", user?.id, basePosts.map((p) => p.id).join(",")],
-    queryFn: () =>
-      fetchInteractions({
-        data: {
-          postIds: basePosts.map((p) => p.id),
-          creatorIds: Array.from(new Set(basePosts.map((p) => p.creator_id))),
-        },
-      }),
-    enabled: !!user && basePosts.length > 0,
-  });
-
-  const likedIds = new Set(me?.likedPostIds ?? []);
-  const followingIds = new Set(me?.followingIds ?? []);
-  const savedIds = new Set(me?.savedPostIds ?? []);
-
-  // track which item is on screen
+  // Track active video
   useEffect(() => {
     const root = containerRef.current;
-    if (!root) return;
+    if (!root || basePosts.length === 0) return;
     const obs = new IntersectionObserver(
       (entries) => {
         entries.forEach((e) => {
-          if (e.isIntersecting && e.intersectionRatio > 0.7) {
+          if (e.isIntersecting && e.intersectionRatio > 0.6) {
             setActive(Number((e.target as HTMLElement).dataset.idx));
           }
         });
       },
-      { root, threshold: [0.7] },
+      { root, threshold: 0.6 },
     );
     root.querySelectorAll<HTMLElement>("[data-feed-item]").forEach((el) => obs.observe(el));
     return () => obs.disconnect();
   }, [basePosts]);
 
-  // Load more posts as the user approaches the end.
+  // Load more
   useEffect(() => {
-    if (basePosts.length === 0 || !hasNextPage || isFetchingNextPage) return;
-    if (active >= basePosts.length - 3) {
-      void fetchNextPage();
-    }
-  }, [active, basePosts.length, hasNextPage, isFetchingNextPage, fetchNextPage]);
+    if (!hasNextPage || isFetchingNextPage) return;
+    if (active >= basePosts.length - 2) fetchNextPage();
+  }, [active, basePosts.length, hasNextPage, isFetchingNextPage]);
 
-  const onLike = async (post: FeedPost) => {
-    if (!user) { navigate({ to: "/welcome" }); return; }
-    try {
-      const pid = realId(post.id);
-      const res = await like({ data: { postId: pid } });
-      qc.setQueryData(["interactions", user.id, basePosts.map((p) => p.id).join(",")], (old: any) => ({
-        likedPostIds: res.liked
-          ? [...(old?.likedPostIds ?? []), pid]
-          : (old?.likedPostIds ?? []).filter((id: string) => id !== pid),
-        followingIds: old?.followingIds ?? [],
-        savedPostIds: old?.savedPostIds ?? [],
-      }));
-    } catch (e) { toast.error((e as Error).message); }
-  };
-
-  const onFollow = async (post: FeedPost) => {
-    if (!user) { navigate({ to: "/welcome" }); return; }
-    if (!post.creator) return;
-    try {
-      await follow({ data: { targetUserId: post.creator.id } });
-      qc.invalidateQueries({ queryKey: ["interactions", user.id] });
-      toast.success(`Following @${post.creator.handle}`);
-    } catch (e) { toast.error((e as Error).message); }
-  };
-
-  const onSave = async (post: FeedPost) => {
-    if (!user) { navigate({ to: "/welcome" }); return; }
-    try {
-      const pid = realId(post.id);
-      const res = await save({ data: { postId: pid } });
-      qc.setQueryData(["interactions", user.id, basePosts.map((p) => p.id).join(",")], (old: any) => ({
-        likedPostIds: old?.likedPostIds ?? [],
-        followingIds: old?.followingIds ?? [],
-        savedPostIds: res.saved
-          ? [...(old?.savedPostIds ?? []), pid]
-          : (old?.savedPostIds ?? []).filter((id: string) => id !== pid),
-      }));
-      toast.success(res.saved ? "Saved to your library" : "Removed from library");
-    } catch (e) { toast.error((e as Error).message); }
-  };
+  if (error) {
+      return (
+          <AppShell>
+              <div className="grid h-dvh place-items-center bg-black p-8 text-center">
+                  <div>
+                      <h2 className="text-xl text-red-500 font-bold mb-2">Connection Error</h2>
+                      <p className="text-white/40 text-sm">{(error as any).message}</p>
+                      <button onClick={() => window.location.reload()} className="mt-4 bg-primary px-6 py-2 rounded-full font-bold">Retry</button>
+                  </div>
+              </div>
+          </AppShell>
+      );
+  }
 
   return (
     <AppShell>
-      <h1 className="sr-only">AI Music and Video Feed</h1>
       <div
         ref={containerRef}
-        className="h-dvh snap-y snap-mandatory overflow-y-scroll"
+        className="h-dvh snap-y snap-mandatory overflow-y-scroll bg-black"
         style={{ scrollbarWidth: "none" }}
       >
         {isLoading && (
-          <div className="grid h-dvh place-items-center text-sm text-muted-foreground">Loading the feed…</div>
+          <div className="grid h-dvh place-items-center text-sm text-muted-foreground italic animate-pulse">Loading viral tracks...</div>
         )}
+
         {!isLoading && basePosts.length === 0 && (
           <div className="grid h-dvh place-items-center px-8 text-center">
             <div>
-              <h2 className="text-2xl text-gradient-gold">The feed is empty</h2>
-              <p className="mt-2 text-sm text-muted-foreground">Be the first to drop a track or a video.</p>
-              <a href="/upload" className="mt-5 inline-block rounded-md bg-gradient-gold px-5 py-2.5 text-sm text-primary-foreground">Post something</a>
+              <h2 className="text-2xl text-gradient-gold font-black italic uppercase">The Feed is Cold</h2>
+              <p className="mt-2 text-sm text-white/40 font-bold uppercase tracking-widest">No posts found in the database.</p>
+              <a href="/upload" className="mt-8 inline-block rounded-full bg-gradient-gold px-8 py-3 text-sm font-black text-black uppercase">Post Something</a>
             </div>
           </div>
         )}
+
         {basePosts.map((post, idx) => (
           <div key={`${post.id}-${idx}`} data-feed-item data-idx={idx}>
             <FeedItem
               post={post}
               active={idx === active}
-              liked={likedIds.has(post.id)}
-              following={post.creator ? followingIds.has(post.creator.id) : false}
-              saved={savedIds.has(post.id)}
-              onLike={() => onLike(post)}
-              onFollow={() => onFollow(post)}
+              liked={false} // Will restore social sync once feed is back
+              following={false}
+              saved={false}
+              onLike={() => {}}
+              onFollow={() => {}}
               onComment={() => setCommentsFor(post.id)}
-              onSave={() => onSave(post)}
+              onSave={() => {}}
               muted={muted}
               onToggleMute={() => setMuted((m) => !m)}
             />
           </div>
         ))}
-        {isFetchingNextPage && (
-          <div className="grid h-20 place-items-center bg-black">
-             <div className="h-5 w-5 animate-spin rounded-full border-2 border-gold border-t-transparent" />
-          </div>
-        )}
       </div>
       <CommentsSheet postId={commentsFor} open={!!commentsFor} onClose={() => setCommentsFor(null)} />
     </AppShell>
