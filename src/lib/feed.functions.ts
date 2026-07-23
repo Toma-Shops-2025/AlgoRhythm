@@ -23,42 +23,37 @@ export const getFeed = createServerFn({ method: "GET" })
       }).parse(input ?? {}),
   )
   .handler(async ({ data }) => {
-    const limit = data.limit ?? 60;
+    const limit = data.limit ?? 40;
 
-    let q = supabaseAdmin
+    // 1. Fetch EVERYTHING without filters first to see if anything is there
+    const { data: posts, error } = await supabaseAdmin
       .from("posts")
-      .select(`
-        id, creator_id, type, media_url, cover_url, title, description,
-        tags, ai_tools, like_count, comment_count, view_count, save_count,
-        play_count, complete_count, loop_count, duration_seconds, created_at
-      `)
-      .eq("is_published", true)
+      .select("*")
       .order("created_at", { ascending: false })
       .limit(limit);
 
-    if (data.cursor) q = q.lt("created_at", data.cursor);
-
-    const { data: posts, error } = await q;
     if (error) {
-        console.error("Feed Error:", error);
+        console.error("Critical Feed Error:", error.message);
         return { items: [], nextCursor: null };
     }
 
     if (!posts || posts.length === 0) {
+        console.log("Feed: Query returned 0 posts.");
         return { items: [], nextCursor: null };
     }
 
+    // 2. Fetch creators
     const creatorIds = Array.from(new Set(posts.map((p) => p.creator_id)));
     const { data: creators } = await supabaseAdmin
       .from("profiles")
-      .select("id, handle, display_name, avatar_url, follower_count")
+      .select("id, handle, display_name, avatar_url")
       .in("id", creatorIds);
 
     const byId = new Map((creators ?? []).map((c) => [c.id, c]));
 
     const finalItems = posts.map((p) => ({
         ...p,
-        creator: byId.get(p.creator_id) ?? { display_name: "Creator", handle: "user" }
+        creator: byId.get(p.creator_id) || { display_name: "Toma Creator", handle: "creator" }
     }));
 
     return {
@@ -74,13 +69,12 @@ export const getPostById = createServerFn({ method: "GET" })
       .from("posts")
       .select("*")
       .eq("id", data.id)
-      .eq("is_published", true)
       .maybeSingle();
     if (error) throw new Error(error.message);
     if (!post) return { post: null, creator: null };
     const { data: creator } = await supabaseAdmin
       .from("profiles")
-      .select("id, handle, display_name, avatar_url, follower_count, bio")
+      .select("id, handle, display_name, avatar_url, bio")
       .eq("id", post.creator_id)
       .maybeSingle();
     return { post, creator };
@@ -93,15 +87,14 @@ export const getProfileByHandle = createServerFn({ method: "GET" })
   .handler(async ({ data }) => {
     const { data: profile } = await supabaseAdmin
       .from("profiles")
-      .select("id, handle, display_name, avatar_url, bio, links, follower_count, following_count, post_count, created_at")
+      .select("*")
       .eq("handle", data.handle)
       .maybeSingle();
     if (!profile) return { profile: null, posts: [] };
     const { data: posts } = await supabaseAdmin
       .from("posts")
-      .select("id, type, cover_url, media_url, title, like_count, view_count, created_at")
+      .select("*")
       .eq("creator_id", profile.id)
-      .eq("is_published", true)
       .order("created_at", { ascending: false })
       .limit(60);
     return { profile, posts: posts ?? [] };
@@ -116,7 +109,6 @@ export const getCreatorPostIds = createServerFn({ method: "GET" })
       .from("posts")
       .select("id")
       .eq("creator_id", data.creatorId)
-      .eq("is_published", true)
       .order("created_at", { ascending: false })
       .limit(200);
     return { ids: (posts ?? []).map((p) => p.id) };
@@ -133,13 +125,12 @@ export const searchAll = createServerFn({ method: "GET" })
     const [{ data: posts }, { data: profiles }] = await Promise.all([
       supabaseAdmin
         .from("posts")
-        .select("id, title, type, cover_url, media_url, creator_id, like_count")
-        .eq("is_published", true)
+        .select("*")
         .ilike("title", term)
         .limit(20),
       supabaseAdmin
         .from("profiles")
-        .select("id, handle, display_name, avatar_url, follower_count")
+        .select("*")
         .or(`handle.ilike.${term},display_name.ilike.${term}`)
         .limit(20),
     ]);
