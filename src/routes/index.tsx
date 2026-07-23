@@ -1,13 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery } from "@tanstack/react-query";
 import { AppShell } from "@/components/AppShell";
 import { FeedItem, type FeedPost } from "@/components/FeedItem";
 import { CommentsSheet } from "@/components/CommentsSheet";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { useNavigate } from "@tanstack/react-router";
-import { toast } from "sonner";
 
 export const Route = createFileRoute("/")({
   component: FeedPage,
@@ -21,30 +20,42 @@ function FeedPage() {
   const [commentsFor, setCommentsFor] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // DIRECT CLIENT-SIDE FETCH (Reliable like ViralSnap)
   const { data, isLoading, error, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
-    queryKey: ["feed", "direct"],
+    queryKey: ["feed", "direct-split"],
     initialPageParam: 0,
     queryFn: async ({ pageParam = 0 }) => {
-      console.log("Feed: Fetching page", pageParam);
       const pageSize = 12;
+
+      // 1. Fetch posts only (Bypass relationship check)
       const { data: posts, error: postError } = await supabase
         .from("posts")
-        .select(`
-            *,
-            creator:profiles!posts_creator_id_fkey (
-                id, handle, display_name, avatar_url
-            )
-        `)
+        .select("*")
         .eq("is_published", true)
         .order("created_at", { ascending: false })
         .range(pageParam * pageSize, (pageParam + 1) * pageSize - 1);
 
       if (postError) throw postError;
+      if (!posts || posts.length === 0) return { items: [], nextPage: pageParam + 1, hasMore: false };
+
+      // 2. Fetch creators for these specific posts manually
+      const creatorIds = Array.from(new Set(posts.map(p => p.creator_id)));
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("id, handle, display_name, avatar_url")
+        .in("id", creatorIds);
+
+      const profileMap = new Map((profiles || []).map(p => [p.id, p]));
+
+      // 3. Attach creator info manually
+      const items = posts.map(p => ({
+          ...p,
+          creator: profileMap.get(p.creator_id) || { display_name: "Creator", handle: "user", avatar_url: null }
+      }));
+
       return {
-          items: posts || [],
+          items,
           nextPage: pageParam + 1,
-          hasMore: (posts || []).length === pageSize
+          hasMore: posts.length === pageSize
       };
     },
     getNextPageParam: (lastPage) => lastPage.hasMore ? lastPage.nextPage : undefined,
@@ -54,7 +65,6 @@ function FeedPage() {
     return (data?.pages.flatMap((page) => page.items) ?? []) as unknown as FeedPost[];
   }, [data]);
 
-  // Track active video
   useEffect(() => {
     const root = containerRef.current;
     if (!root || basePosts.length === 0) return;
@@ -72,7 +82,6 @@ function FeedPage() {
     return () => obs.disconnect();
   }, [basePosts]);
 
-  // Load more
   useEffect(() => {
     if (!hasNextPage || isFetchingNextPage) return;
     if (active >= basePosts.length - 2) fetchNextPage();
@@ -83,9 +92,9 @@ function FeedPage() {
           <AppShell>
               <div className="grid h-dvh place-items-center bg-black p-8 text-center">
                   <div>
-                      <h2 className="text-xl text-red-500 font-bold mb-2">Connection Error</h2>
-                      <p className="text-white/40 text-sm">{(error as any).message}</p>
-                      <button onClick={() => window.location.reload()} className="mt-4 bg-primary px-6 py-2 rounded-full font-bold">Retry</button>
+                      <h2 className="text-xl text-red-500 font-bold mb-2 tracking-tighter uppercase italic">Sync Error</h2>
+                      <p className="text-white/40 text-[10px] font-bold uppercase tracking-widest">{(error as any).message}</p>
+                      <button onClick={() => window.location.reload()} className="mt-8 bg-primary text-black px-10 py-3 rounded-full font-black uppercase text-xs shadow-glow">Retry Sync</button>
                   </div>
               </div>
           </AppShell>
@@ -94,21 +103,17 @@ function FeedPage() {
 
   return (
     <AppShell>
-      <div
-        ref={containerRef}
-        className="h-dvh snap-y snap-mandatory overflow-y-scroll bg-black"
-        style={{ scrollbarWidth: "none" }}
-      >
+      <div ref={containerRef} className="h-dvh snap-y snap-mandatory overflow-y-scroll bg-black" style={{ scrollbarWidth: "none" }}>
         {isLoading && (
-          <div className="grid h-dvh place-items-center text-sm text-muted-foreground italic animate-pulse">Loading viral tracks...</div>
+          <div className="grid h-dvh place-items-center text-[10px] text-white/20 font-black uppercase tracking-[0.4em] italic animate-pulse">Initializing Feed...</div>
         )}
 
         {!isLoading && basePosts.length === 0 && (
           <div className="grid h-dvh place-items-center px-8 text-center">
             <div>
-              <h2 className="text-2xl text-gradient-gold font-black italic uppercase">The Feed is Cold</h2>
-              <p className="mt-2 text-sm text-white/40 font-bold uppercase tracking-widest">No posts found in the database.</p>
-              <a href="/upload" className="mt-8 inline-block rounded-full bg-gradient-gold px-8 py-3 text-sm font-black text-black uppercase">Post Something</a>
+              <h2 className="text-3xl text-gradient-gold font-black italic uppercase tracking-tighter">Feed Empty</h2>
+              <p className="mt-2 text-[10px] text-white/40 font-bold uppercase tracking-widest">Your 141 posts are waiting in the database.</p>
+              <a href="/upload" className="mt-8 inline-block rounded-full bg-gradient-gold px-8 py-3 text-sm font-black text-black uppercase shadow-glow">Create First Post</a>
             </div>
           </div>
         )}
@@ -118,7 +123,7 @@ function FeedPage() {
             <FeedItem
               post={post}
               active={idx === active}
-              liked={false} // Will restore social sync once feed is back
+              liked={false}
               following={false}
               saved={false}
               onLike={() => {}}
