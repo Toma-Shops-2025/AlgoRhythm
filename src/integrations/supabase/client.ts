@@ -4,7 +4,7 @@ import type { Database } from './types';
 
 function createSupabaseClient() {
   let url = import.meta.env.VITE_SUPABASE_URL || process.env.SUPABASE_URL || "";
-  const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_PUBLISHABLE_KEY || "";
+  const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_PUBLISHABLE_KEY || process.env.SUPABASE_ANON_KEY || "";
 
   // CLEANUP LOGIC: Strip any trailing slashes or /rest/v1 from the end
   url = url.replace(/\/$/, ""); // Remove trailing slash
