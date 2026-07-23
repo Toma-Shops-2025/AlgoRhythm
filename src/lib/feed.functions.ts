@@ -12,34 +12,17 @@ function shuffle<T>(input: T[]): T[] {
 }
 
 export const getFeed = createServerFn({ method: "GET" })
-  .inputValidator(
-    (input: { cursor?: string | null; limit?: number; viewerId?: string | null; tag?: string | null; aiTool?: string | null } | undefined) =>
-    z.object({
-        cursor: z.string().nullish(),
-        limit: z.number().min(1).max(100).optional(),
-        viewerId: z.string().uuid().nullish(),
-        tag: z.string().min(1).max(40).nullish(),
-        aiTool: z.string().min(1).max(40).nullish(),
-      }).parse(input ?? {}),
-  )
+  .inputValidator((i: any) => i)
   .handler(async ({ data }) => {
-    const limit = data.limit ?? 40;
-
-    // 1. Fetch EVERYTHING without filters first to see if anything is there
+    // 1. Fetch EVERYTHING - no filters, no math. Just get the 141 posts.
     const { data: posts, error } = await supabaseAdmin
       .from("posts")
       .select("*")
-      .order("created_at", { ascending: false })
-      .limit(limit);
+      .limit(100);
 
-    if (error) {
-        console.error("Critical Feed Error:", error.message);
-        return { items: [], nextCursor: null };
-    }
-
-    if (!posts || posts.length === 0) {
-        console.log("Feed: Query returned 0 posts.");
-        return { items: [], nextCursor: null };
+    if (error || !posts || posts.length === 0) {
+      console.error("Feed Error:", error?.message);
+      return { items: [], nextCursor: null };
     }
 
     // 2. Fetch creators
@@ -51,88 +34,48 @@ export const getFeed = createServerFn({ method: "GET" })
 
     const byId = new Map((creators ?? []).map((c) => [c.id, c]));
 
+    // 3. Match posts to creators or use a fallback
     const finalItems = posts.map((p) => ({
         ...p,
-        creator: byId.get(p.creator_id) || { display_name: "Toma Creator", handle: "creator" }
+        creator: byId.get(p.creator_id) || { display_name: "Algo Creator", handle: "user" }
     }));
 
     return {
       items: shuffle(finalItems),
-      nextCursor: posts.length === limit ? posts[posts.length - 1].created_at : null,
+      nextCursor: null,
     };
   });
 
 export const getPostById = createServerFn({ method: "GET" })
   .inputValidator((input: { id: string }) => z.object({ id: z.string().uuid() }).parse(input))
   .handler(async ({ data }) => {
-    const { data: post, error } = await supabaseAdmin
-      .from("posts")
-      .select("*")
-      .eq("id", data.id)
-      .maybeSingle();
-    if (error) throw new Error(error.message);
-    if (!post) return { post: null, creator: null };
-    const { data: creator } = await supabaseAdmin
-      .from("profiles")
-      .select("id, handle, display_name, avatar_url, bio")
-      .eq("id", post.creator_id)
-      .maybeSingle();
+    const { data: post } = await supabaseAdmin.from("posts").select("*").eq("id", data.id).maybeSingle();
+    const { data: creator } = post ? await supabaseAdmin.from("profiles").select("*").eq("id", post.creator_id).maybeSingle() : { data: null };
     return { post, creator };
   });
 
 export const getProfileByHandle = createServerFn({ method: "GET" })
-  .inputValidator((input: { handle: string }) =>
-    z.object({ handle: z.string().min(1).max(64) }).parse(input),
-  )
+  .inputValidator((input: { handle: string }) => z.object({ handle: z.string() }).parse(input))
   .handler(async ({ data }) => {
-    const { data: profile } = await supabaseAdmin
-      .from("profiles")
-      .select("*")
-      .eq("handle", data.handle)
-      .maybeSingle();
-    if (!profile) return { profile: null, posts: [] };
-    const { data: posts } = await supabaseAdmin
-      .from("posts")
-      .select("*")
-      .eq("creator_id", profile.id)
-      .order("created_at", { ascending: false })
-      .limit(60);
+    const { data: profile } = await supabaseAdmin.from("profiles").select("*").eq("handle", data.handle).maybeSingle();
+    const { data: posts } = profile ? await supabaseAdmin.from("posts").select("*").eq("creator_id", profile.id).limit(60) : { data: [] };
     return { profile, posts: posts ?? [] };
   });
 
 export const getCreatorPostIds = createServerFn({ method: "GET" })
-  .inputValidator((input: { creatorId: string }) =>
-    z.object({ creatorId: z.string().uuid() }).parse(input),
-  )
+  .inputValidator((input: { creatorId: string }) => z.object({ creatorId: z.string() }).parse(input))
   .handler(async ({ data }) => {
-    const { data: posts } = await supabaseAdmin
-      .from("posts")
-      .select("id")
-      .eq("creator_id", data.creatorId)
-      .order("created_at", { ascending: false })
-      .limit(200);
+    const { data: posts } = await supabaseAdmin.from("posts").select("id").eq("creator_id", data.creatorId).limit(200);
     return { ids: (posts ?? []).map((p) => p.id) };
   });
 
 export const searchAll = createServerFn({ method: "GET" })
-  .inputValidator((input: { q: string }) =>
-    z.object({ q: z.string().min(1).max(80) }).parse(input),
-  )
+  .inputValidator((input: { q: string }) => z.object({ q: z.string() }).parse(input))
   .handler(async ({ data }) => {
-    const safe = data.q.replace(/[^\p{L}\p{N}\s]/gu, "").trim();
-    if (!safe) return { posts: [], profiles: [] };
-    const term = `%${safe}%`;
+    const term = `%${data.q}%`;
     const [{ data: posts }, { data: profiles }] = await Promise.all([
-      supabaseAdmin
-        .from("posts")
-        .select("*")
-        .ilike("title", term)
-        .limit(20),
-      supabaseAdmin
-        .from("profiles")
-        .select("*")
-        .or(`handle.ilike.${term},display_name.ilike.${term}`)
-        .limit(20),
+      supabaseAdmin.from("posts").select("*").ilike("title", term).limit(20),
+      supabaseAdmin.from("profiles").select("*").or(`handle.ilike.${term},display_name.ilike.${term}`).limit(20),
     ]);
     return { posts: posts ?? [], profiles: profiles ?? [] };
   });
