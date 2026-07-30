@@ -6,11 +6,22 @@ export const getFeed = createServerFn({ method: "GET" })
   .handler(async () => {
     console.log("Feed: Starting fetch...");
 
-    // 1. Fetch posts using the public client
+    // 1. Get total count to pick a random starting point
+    const { count } = await supabase
+      .from("posts")
+      .select("*", { count: 'exact', head: true })
+      .eq("status", "published");
+
+    const total = count || 0;
+    const limit = 50;
+    const randomOffset = total > limit ? Math.floor(Math.random() * (total - limit)) : 0;
+
+    // 2. Fetch a random batch of posts
     const { data: posts, error } = await supabase
       .from("posts")
       .select("*")
-      .limit(50);
+      .eq("status", "published")
+      .range(randomOffset, randomOffset + limit - 1);
 
     if (error) {
       console.error("Feed: DB Error", error.message);
@@ -24,7 +35,7 @@ export const getFeed = createServerFn({ method: "GET" })
           items: [{
               id: "00000000-0000-0000-0000-000000000000",
               title: "Welcome to AlgoRhythm!",
-              description: "We are syncing your 141 posts. If you see this, the app is connected!",
+              description: "We are syncing your posts. If you see this, the app is connected!",
               media_url: "https://vujmezepstugbhozgtrm.supabase.co/storage/v1/object/public/media/welcome.mp4",
               type: "video",
               creator_id: "00000000-0000-0000-0000-000000000000",
@@ -34,9 +45,7 @@ export const getFeed = createServerFn({ method: "GET" })
       };
     }
 
-    console.log(`Feed: Successfully found ${posts.length} posts.`);
-
-    // 2. Fetch creators
+    // 3. Fetch creators
     const creatorIds = Array.from(new Set(posts.map((p) => p.creator_id)));
     const { data: creators } = await supabase
       .from("profiles")
@@ -45,10 +54,11 @@ export const getFeed = createServerFn({ method: "GET" })
 
     const byId = new Map((creators ?? []).map((c) => [c.id, c]));
 
+    // 4. Shuffle the batch locally for extra randomness
     const finalItems = posts.map((p) => ({
         ...p,
         creator: byId.get(p.creator_id) || { display_name: "Creator", handle: "user" }
-    }));
+    })).sort(() => Math.random() - 0.5);
 
     return {
       items: finalItems,

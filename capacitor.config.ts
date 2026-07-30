@@ -5,10 +5,7 @@ const config: CapacitorConfig = {
   appName: "AlgoRhythm",
   webDir: "dist/client",
   server: {
-    // Load the live SSR'd site so TanStack Start hydrates correctly inside the
-    // native WebView (a static index.html alone cannot hydrate SSR routes).
-    url: "https://myalgorhythm.online",
-    cleartext: false,
+    androidScheme: 'https'
   },
   android: {
     webContentsDebuggingEnabled: true,
