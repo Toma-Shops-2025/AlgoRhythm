@@ -42,7 +42,7 @@ function SignupPage() {
     if (!agreed) return toast.error("Please accept the Terms, Privacy Policy, and Community Guidelines");
     if (!copyrightConfirmed) return toast.error("Please confirm you'll only post content you have rights to");
     setLoading(true);
-    const { data, error } = await supabase.auth.signUp({
+    const { data: authData, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
@@ -55,6 +55,15 @@ function SignupPage() {
         },
       },
     });
+
+    if (!error && authData.user) {
+      // Sync email to profiles for admin visibility
+      await supabase.from('profiles').insert({
+          id: authData.user.id,
+          display_name: displayName,
+          email: email
+      }).catch(err => console.warn("Profile sync error", err));
+    }
     setLoading(false);
     if (error) return toast.error(error.message);
 
