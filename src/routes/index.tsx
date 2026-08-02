@@ -12,6 +12,16 @@ export const Route = createFileRoute("/")({
   component: FeedPage,
 });
 
+/** Fisher–Yates shuffle helper */
+function shuffle<T>(input: T[]): T[] {
+  const arr = [...input];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
 function FeedPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -20,24 +30,39 @@ function FeedPage() {
   const [commentsFor, setCommentsFor] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  // Generate a random seed once per session to maintain consistent "random" order during paging
+  const [sessionSeed] = useState(() => Math.floor(Math.random() * 1000));
+
   const { data, isLoading, error, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
-    queryKey: ["feed", "direct-split"],
+    queryKey: ["feed", "shuffled", sessionSeed],
     initialPageParam: 0,
     queryFn: async ({ pageParam = 0 }) => {
       const pageSize = 12;
 
-      // 1. Fetch posts only (Bypass relationship check)
+      // 1. Get total count to calculate a random offset
+      const { count } = await supabase
+        .from("posts")
+        .select("*", { count: 'exact', head: true })
+        .eq("is_published", true);
+
+      const total = count || 0;
+
+      // Calculate a random starting point based on the seed
+      // This ensures that page 1 follows page 0 logically within the same session
+      const seedOffset = (sessionSeed % Math.max(1, total - pageSize));
+      const effectiveOffset = (seedOffset + (pageParam * pageSize)) % Math.max(1, total);
+
+      // 2. Fetch posts using the calculated offset
       const { data: posts, error: postError } = await supabase
         .from("posts")
         .select("*")
         .eq("is_published", true)
-        .order("created_at", { ascending: false })
-        .range(pageParam * pageSize, (pageParam + 1) * pageSize - 1);
+        .range(effectiveOffset, effectiveOffset + pageSize - 1);
 
       if (postError) throw postError;
       if (!posts || posts.length === 0) return { items: [], nextPage: pageParam + 1, hasMore: false };
 
-      // 2. Fetch creators for these specific posts manually
+      // 3. Fetch creators
       const creatorIds = Array.from(new Set(posts.map(p => p.creator_id)));
       const { data: profiles } = await supabase
         .from("profiles")
@@ -46,16 +71,16 @@ function FeedPage() {
 
       const profileMap = new Map((profiles || []).map(p => [p.id, p]));
 
-      // 3. Attach creator info manually
-      const items = posts.map(p => ({
+      // 4. Attach creator info and SHUFFLE the individual page for extra variety
+      const items = shuffle(posts.map(p => ({
           ...p,
           creator: profileMap.get(p.creator_id) || { display_name: "Creator", handle: "user", avatar_url: null }
-      }));
+      })));
 
       return {
           items,
           nextPage: pageParam + 1,
-          hasMore: posts.length === pageSize
+          hasMore: total > (pageParam + 1) * pageSize
       };
     },
     getNextPageParam: (lastPage) => lastPage.hasMore ? lastPage.nextPage : undefined,
@@ -103,7 +128,7 @@ function FeedPage() {
 
   return (
     <AppShell>
-      <div ref={containerRef} className="h-dvh snap-y snap-mandatory overflow-y-scroll bg-black" style={{ scrollbarWidth: "none" }}>
+      <div ref={containerRef} className="h-dvh snap-y snap-mandatory overflow-y-scroll bg-black no-scrollbar" style={{ scrollbarWidth: "none" }}>
         {isLoading && (
           <div className="grid h-dvh place-items-center text-[10px] text-white/20 font-black uppercase tracking-[0.4em] italic animate-pulse">Initializing Feed...</div>
         )}
@@ -112,7 +137,7 @@ function FeedPage() {
           <div className="grid h-dvh place-items-center px-8 text-center">
             <div>
               <h2 className="text-3xl text-gradient-gold font-black italic uppercase tracking-tighter">Feed Empty</h2>
-              <p className="mt-2 text-[10px] text-white/40 font-bold uppercase tracking-widest">Your 141 posts are waiting in the database.</p>
+              <p className="mt-2 text-[10px] text-white/40 font-bold uppercase tracking-widest">Connect to the grid to start syncing.</p>
               <a href="/upload" className="mt-8 inline-block rounded-full bg-gradient-gold px-8 py-3 text-sm font-black text-black uppercase shadow-glow">Create First Post</a>
             </div>
           </div>
@@ -135,8 +160,19 @@ function FeedPage() {
             />
           </div>
         ))}
+        {isFetchingNextPage && (
+            <div className="h-20 w-full flex items-center justify-center bg-black">
+                <Loader2 className="animate-spin text-primary h-6 w-6" />
+            </div>
+        )}
       </div>
       <CommentsSheet postId={commentsFor} open={!!commentsFor} onClose={() => setCommentsFor(null)} />
     </AppShell>
   );
+}
+
+function Loader2(props: any) {
+    return (
+        <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+    )
 }
