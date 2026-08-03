@@ -1,13 +1,11 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient, useQueryClient } from "@tanstack/react-query";
 import {
   Outlet,
   Link,
   createRootRouteWithContext,
-  HeadContent,
-  Scripts,
+  useRouter,
 } from "@tanstack/react-router";
 import { useEffect } from "react";
-import { useQueryClient } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/sonner";
 import { supabase } from "@/integrations/supabase/client";
 import { CookieBanner } from "@/components/CookieBanner";
@@ -20,9 +18,6 @@ function NotFoundComponent() {
       <div className="max-w-md text-center">
         <h1 className="text-7xl font-bold text-foreground">404</h1>
         <h2 className="mt-4 text-xl font-semibold text-foreground">Page not found</h2>
-        <p className="mt-2 text-sm text-muted-foreground">
-          The page you're looking for doesn't exist or has been moved.
-        </p>
         <div className="mt-6">
           <Link
             to="/"
@@ -37,20 +32,14 @@ function NotFoundComponent() {
 }
 
 function RootComponent() {
-  const { queryClient } = Route.useRouteContext();
-
   return (
-    <QueryClientProvider client={queryClient}>
-      <div className="min-h-screen bg-black text-white">
-        <HeadContent />
-        <AuthListener />
-        <Outlet />
-        <Toaster richColors theme="dark" position="top-center" />
-        <CookieBanner />
-        <p className="fixed bottom-2 right-2 text-[8px] opacity-10 uppercase font-black z-[9999] pointer-events-none">Build v2.1.8-master</p>
-        <Scripts />
-      </div>
-    </QueryClientProvider>
+    <div className="min-h-screen bg-black text-white">
+      <AuthListener />
+      <Outlet />
+      <Toaster richColors theme="dark" position="top-center" />
+      <CookieBanner />
+      <p className="fixed bottom-2 right-2 text-[8px] opacity-10 uppercase font-black z-[9999] pointer-events-none">Build v2.1.8-master</p>
+    </div>
   );
 }
 
