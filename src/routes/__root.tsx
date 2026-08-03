@@ -4,6 +4,8 @@ import {
   Link,
   createRootRouteWithContext,
   useRouter,
+  HeadContent,
+  Scripts,
 } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -82,46 +84,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         content:
           "AlgoRhythm is the home for AI-made music and music videos. Discover, share, and rise — a vertical feed built for AI creators.",
       },
-      { property: "og:site_name", content: "AlgoRhythm" },
-      { property: "og:title", content: "AlgoRhythm — AI music, made viral" },
-      {
-        property: "og:description",
-        content: "The vertical feed for AI-made music and music videos.",
-      },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary_large_image" },
-      { property: "twitter:title", content: "AlgoRhythm — AI music, made viral" },
-      { property: "twitter:description", content: "The vertical feed for AI-made music and music videos." },
-      { name: "twitter:title", content: "AlgoRhythm — AI music, made viral" },
-      { name: "description", content: "AI Muse is a platform for AI music and video creators to showcase and discover AI-generated content." },
-      { property: "og:description", content: "AI Muse is a platform for AI music and video creators to showcase and discover AI-generated content." },
-      { name: "twitter:description", content: "AI Muse is a platform for AI music and video creators to showcase and discover AI-generated content." },
-      { property: "og:image", content: "https://myalgorhythm.online/social-card.png" },
-      { name: "twitter:image", content: "https://myalgorhythm.online/social-card.png" },
     ],
     links: [
       {
         rel: "stylesheet",
         href: appCss,
       },
-      { rel: "manifest", href: "/manifest.json" },
-      { rel: "apple-touch-icon", href: "/icon-192.png" },
-      { rel: "icon", type: "image/png", sizes: "512x512", href: "/icon-512.png" },
-    ],
-    scripts: [
-      {
-        type: "application/ld+json",
-        children: JSON.stringify({
-          "@context": "https://schema.org",
-          "@type": "Organization",
-          name: "AlgoRhythm",
-          url: "https://myalgorhythm.online",
-          description: "The vertical feed for AI-made music and music videos.",
-        }),
-      },
     ],
   }),
-  // Removed RootShell for Capacitor compatibility
   component: RootComponent,
   notFoundComponent: NotFoundComponent,
   errorComponent: ErrorComponent,
@@ -131,13 +101,21 @@ function RootComponent() {
   const { queryClient } = Route.useRouteContext();
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthListener />
-      <Outlet />
-      <Toaster richColors theme="dark" position="top-center" />
-      <CookieBanner />
-      <p className="fixed bottom-2 right-2 text-[8px] opacity-10 uppercase font-black z-[9999] pointer-events-none">Build v2.1.8-master</p>
-    </QueryClientProvider>
+    <html lang="en" className="dark">
+      <head>
+        <HeadContent />
+      </head>
+      <body className="bg-black text-white">
+        <QueryClientProvider client={queryClient}>
+          <AuthListener />
+          <Outlet />
+          <Toaster richColors theme="dark" position="top-center" />
+          <CookieBanner />
+          <p className="fixed bottom-2 right-2 text-[8px] opacity-10 uppercase font-black z-[9999] pointer-events-none">Build v2.1.8-master</p>
+        </QueryClientProvider>
+        <Scripts />
+      </body>
+    </html>
   );
 }
 
