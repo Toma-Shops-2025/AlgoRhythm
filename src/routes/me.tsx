@@ -65,6 +65,7 @@ function MePage() {
       .maybeSingle()
       .then(({ data }) => setIsAdmin(!!data));
   }, [user]);
+
   const fetchMe = getMyProfile;
   const fetchLibrary = getMyLibrary;
   const update = updateMyProfile;
