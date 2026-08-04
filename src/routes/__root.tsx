@@ -4,8 +4,6 @@ import {
   Link,
   createRootRouteWithContext,
   useRouter,
-  HeadContent,
-  Scripts,
 } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { Toaster } from "@/components/ui/sonner";
@@ -39,13 +37,11 @@ function NotFoundComponent() {
 function RootComponent() {
   return (
     <div className="min-h-screen bg-black text-white">
-      <HeadContent />
       <AuthListener />
       <Outlet />
       <Toaster richColors theme="dark" position="top-center" />
       <CookieBanner />
       <p className="fixed bottom-2 right-2 text-[8px] opacity-10 uppercase font-black z-[9999] pointer-events-none">Build v2.1.8-master</p>
-      <Scripts />
     </div>
   );
 }

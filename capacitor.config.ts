@@ -3,7 +3,7 @@ import type { CapacitorConfig } from "@capacitor/cli";
 const config: CapacitorConfig = {
   appId: "online.myalgorhythm.app",
   appName: "AlgoRhythm",
-  webDir: "dist/client",
+  webDir: "dist",
   server: {
     androidScheme: 'https'
   },
