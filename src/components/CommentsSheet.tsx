@@ -1,19 +1,17 @@
 import { useEffect, useState } from "react";
-import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { addComment, getComments } from "@/lib/social.functions";
 import { useAuth } from "@/lib/auth";
 import { useNavigate } from "@tanstack/react-router";
 import { X, Send, Pin } from "lucide-react";
 import { toast } from "sonner";
-import { cn } from "@/lib/utils";
 
 export function CommentsSheet({ postId, open, onClose }: { postId: string | null; open: boolean; onClose: () => void }) {
   const { user } = useAuth();
   const navigate = useNavigate();
   const qc = useQueryClient();
-  const fetchComments = useServerFn(getComments);
-  const postComment = useServerFn(addComment);
+  const fetchComments = getComments;
+  const postComment = addComment;
   const [body, setBody] = useState("");
 
   const { data } = useQuery({

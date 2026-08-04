@@ -3,7 +3,6 @@ import { useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { useProSubscription } from "@/hooks/useSubscription";
-import { useServerFn } from "@tanstack/react-start";
 import { createPost } from "@/lib/posts.functions";
 import { generateCoverImage, generatePostMetadata, generateMusicVideoScenes } from "@/lib/ai.functions";
 import { audioToVideo, audioToLyricVideo, b64ToFile, loadImageFromB64, type LyricLine } from "@/lib/audioToVideo";
@@ -37,10 +36,10 @@ function UploadPage() {
   const navigate = useNavigate();
   const search = Route.useSearch();
   const regenCount = search.regen ?? 0;
-  const post = useServerFn(createPost);
-  const genCover = useServerFn(generateCoverImage);
-  const genMeta = useServerFn(generatePostMetadata);
-  const genScenes = useServerFn(generateMusicVideoScenes);
+  const post = createPost;
+  const genCover = generateCoverImage;
+  const genMeta = generatePostMetadata;
+  const genScenes = generateMusicVideoScenes;
 
   const [media, setMedia] = useState<File | null>(null);
   const [cover, setCover] = useState<File | null>(null);

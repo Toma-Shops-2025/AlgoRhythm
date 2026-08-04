@@ -1,5 +1,4 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useServerFn } from "@tanstack/react-start";
 import { queryOptions, useSuspenseQuery, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState, useMemo, useRef } from "react";
 import { AppShell } from "@/components/AppShell";
@@ -78,12 +77,12 @@ export const Route = createFileRoute("/u/$handle")({
 
 function ProfilePage() {
   const { handle } = Route.useParams();
-  const follow = useServerFn(toggleFollow);
-  const interactionsFn = useServerFn(getMyInteractions);
-  const subFn = useServerFn(createCreatorSubCheckout);
-  const blockFn = useServerFn(toggleBlock);
-  const editPost = useServerFn(updatePost);
-  const removePost = useServerFn(deletePost);
+  const follow = toggleFollow;
+  const interactionsFn = getMyInteractions;
+  const subFn = createCreatorSubCheckout;
+  const blockFn = toggleBlock;
+  const editPost = updatePost;
+  const removePost = deletePost;
   const { user } = useAuth();
   const navigate = useNavigate();
   const qc = useQueryClient();

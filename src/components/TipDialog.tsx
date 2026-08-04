@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useServerFn } from "@tanstack/react-start";
 import { CheckoutDialog } from "./CheckoutDialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { createTipCheckout } from "@/lib/payments.functions";
@@ -21,7 +20,7 @@ export function TipDialog({
   creatorName: string;
   postId?: string;
 }) {
-  const checkoutFn = useServerFn(createTipCheckout);
+  const checkoutFn = createTipCheckout;
   const [amount, setAmount] = useState<number>(500);
   const [custom, setCustom] = useState("");
   const [checkoutOpen, setCheckoutOpen] = useState(false);

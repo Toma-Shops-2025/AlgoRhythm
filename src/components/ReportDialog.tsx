@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useServerFn } from "@tanstack/react-start";
 import {
   Dialog,
   DialogContent,
@@ -43,7 +42,7 @@ export function ReportDialog({
   const [reason, setReason] = useState<ReportReason>("spam");
   const [details, setDetails] = useState("");
   const [submitting, setSubmitting] = useState(false);
-  const reportFn = useServerFn(submitReport);
+  const reportFn = submitReport;
 
   const submit = async () => {
     setSubmitting(true);

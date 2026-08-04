@@ -1,5 +1,4 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState, useMemo, useRef } from "react";
 import { AppShell } from "@/components/AppShell";
@@ -66,13 +65,13 @@ function MePage() {
       .maybeSingle()
       .then(({ data }) => setIsAdmin(!!data));
   }, [user]);
-  const fetchMe = useServerFn(getMyProfile);
-  const fetchLibrary = useServerFn(getMyLibrary);
-  const update = useServerFn(updateMyProfile);
-  const removePost = useServerFn(deletePost);
-  const editPost = useServerFn(updatePost);
-  const wipeAccount = useServerFn(deleteAccount);
-  const portalFn = useServerFn(createPortalSession);
+  const fetchMe = getMyProfile;
+  const fetchLibrary = getMyLibrary;
+  const update = updateMyProfile;
+  const removePost = deletePost;
+  const editPost = updatePost;
+  const wipeAccount = deleteAccount;
+  const portalFn = createPortalSession;
   const { isPro } = useProSubscription();
   const [editing, setEditing] = useState(false);
   const [displayName, setDisplayName] = useState("");

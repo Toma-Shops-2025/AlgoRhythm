@@ -1,5 +1,4 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { PaymentTestModeBanner } from "@/components/PaymentTestModeBanner";
@@ -28,8 +27,8 @@ function PricingPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { isPro } = useProSubscription();
-  const checkoutFn = useServerFn(createProCheckout);
-  const portalFn = useServerFn(createPortalSession);
+  const checkoutFn = createProCheckout;
+  const portalFn = createPortalSession;
   const [open, setOpen] = useState(false);
   const [priceId, setPriceId] = useState<"pro_monthly" | "pro_yearly">("pro_yearly");
 

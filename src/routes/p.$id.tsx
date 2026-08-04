@@ -1,5 +1,4 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useServerFn } from "@tanstack/react-start";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
 import { useRef, useState } from "react";
 import { AppShell } from "@/components/AppShell";
@@ -146,9 +145,9 @@ export const Route = createFileRoute("/p/$id")({
 function PostPage() {
   const { id } = Route.useParams();
   const search = Route.useSearch();
-  const like = useServerFn(toggleLike);
-  const removePost = useServerFn(deletePost);
-  const siblingsFn = useServerFn(getCreatorPostIds);
+  const like = toggleLike;
+  const removePost = deletePost;
+  const siblingsFn = getCreatorPostIds;
   const { user } = useAuth();
   const navigate = useNavigate();
   const audioRef = useRef<HTMLAudioElement>(null);

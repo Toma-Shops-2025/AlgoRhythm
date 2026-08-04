@@ -1,5 +1,4 @@
 import { createFileRoute, useNavigate, Link } from "@tanstack/react-router";
-import { useServerFn } from "@tanstack/react-start";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { AppShell } from "@/components/AppShell";
@@ -153,7 +152,7 @@ function AdminPage() {
 
 /* ============ OVERVIEW ============ */
 function OverviewTab() {
-  const fn = useServerFn(getAdminStats);
+  const fn = getAdminStats;
   const { data, isLoading } = useQuery({ queryKey: ["admin-stats"], queryFn: () => fn() });
   if (isLoading || !data) return <SkeletonGrid />;
   const cards = [
@@ -201,9 +200,9 @@ function SkeletonGrid() {
 /* ============ USERS ============ */
 function UsersTab({ currentUserId }: { currentUserId: string }) {
   const [search, setSearch] = useState("");
-  const fn = useServerFn(listUsers);
-  const toggleFn = useServerFn(toggleUserRole);
-  const delFn = useServerFn(adminDeleteUser);
+  const fn = listUsers;
+  const toggleFn = toggleUserRole;
+  const delFn = adminDeleteUser;
   const qc = useQueryClient();
   const { data, isLoading } = useQuery({
     queryKey: ["admin-users", search],
@@ -326,9 +325,9 @@ function UsersTab({ currentUserId }: { currentUserId: string }) {
 /* ============ POSTS ============ */
 function PostsTab() {
   const [search, setSearch] = useState("");
-  const fn = useServerFn(listPosts);
-  const togglePub = useServerFn(adminTogglePublish);
-  const delFn = useServerFn(adminDeletePost);
+  const fn = listPosts;
+  const togglePub = adminTogglePublish;
+  const delFn = adminDeletePost;
   const qc = useQueryClient();
   const { data, isLoading } = useQuery({
     queryKey: ["admin-posts", search],
@@ -426,8 +425,8 @@ function PostsTab() {
 
 /* ============ COMMENTS ============ */
 function CommentsTab() {
-  const fn = useServerFn(listComments);
-  const delFn = useServerFn(adminDeleteComment);
+  const fn = listComments;
+  const delFn = adminDeleteComment;
   const qc = useQueryClient();
   const { data, isLoading } = useQuery({
     queryKey: ["admin-comments"],
@@ -475,7 +474,7 @@ function CommentsTab() {
 
 /* ============ TRANSACTIONS ============ */
 function TransactionsTab() {
-  const fn = useServerFn(listTransactions);
+  const fn = listTransactions;
   const { data, isLoading } = useQuery({ queryKey: ["admin-tx"], queryFn: () => fn() });
   if (isLoading || !data)
     return <Loader2 className="mx-auto h-5 w-5 animate-spin text-muted-foreground" />;
@@ -538,8 +537,8 @@ function TransactionsTab() {
 /* ============ REPORTS ============ */
 function ReportsTab() {
   const [status, setStatus] = useState<"pending" | "resolved" | "dismissed">("pending");
-  const fn = useServerFn(listReports);
-  const resolveFn = useServerFn(resolveReport);
+  const fn = listReports;
+  const resolveFn = resolveReport;
   const qc = useQueryClient();
   const { data, isLoading } = useQuery({
     queryKey: ["admin-reports", status],

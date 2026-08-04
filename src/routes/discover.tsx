@@ -1,6 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { useServerFn } from "@tanstack/react-start";
 import { useQuery } from "@tanstack/react-query";
 import { AppShell } from "@/components/AppShell";
 import { getFeed, searchAll } from "@/lib/feed.functions";
@@ -27,8 +26,8 @@ export const Route = createFileRoute("/discover")({
 });
 
 function DiscoverPage() {
-  const fetchFeed = useServerFn(getFeed);
-  const search = useServerFn(searchAll);
+  const fetchFeed = getFeed;
+  const search = searchAll;
   const { user } = useAuth();
   const [q, setQ] = useState("");
   const [tag, setTag] = useState<string | null>(null);

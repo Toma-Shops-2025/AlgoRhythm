@@ -1,6 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useServerFn } from "@tanstack/react-start";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AppShell } from "@/components/AppShell";
 import { useAuth } from "@/lib/auth";
 import { getMyEarnings } from "@/lib/earnings.functions";
@@ -29,11 +28,11 @@ export const Route = createFileRoute("/payouts")({
 
 function PayoutsPage() {
   const { user } = useAuth();
-  const fetchEarnings = useServerFn(getMyEarnings);
-  const fetchStatus = useServerFn(getMyConnectStatus);
-  const startOnboard = useServerFn(startConnectOnboarding);
-  const refreshStatus = useServerFn(refreshConnectStatus);
-  const getDashLink = useServerFn(getConnectDashboardLink);
+  const fetchEarnings = getMyEarnings;
+  const fetchStatus = getMyConnectStatus;
+  const startOnboard = startConnectOnboarding;
+  const refreshStatus = refreshConnectStatus;
+  const getDashLink = getConnectDashboardLink;
   const qc = useQueryClient();
   const env = getStripeEnvironment();
   const [busy, setBusy] = useState<null | "onboard" | "refresh" | "dash">(null);

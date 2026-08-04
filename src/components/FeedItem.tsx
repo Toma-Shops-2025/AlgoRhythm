@@ -18,10 +18,9 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/lib/auth";
-import { useNavigate } from "@tanstack/react-router";
+import { useNavigate, useRouter } from "@tanstack/react-router";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { useServerFn } from "@tanstack/react-start";
 import { recordPlayback } from "@/lib/playback.functions";
 
 export type FeedPost = {
@@ -83,7 +82,7 @@ export function FeedItem({
   const [shareOpen, setShareOpen] = useState(false);
   const { user } = useAuth();
   const navigate = useNavigate();
-  const track = useServerFn(recordPlayback);
+  const track = recordPlayback;
   const playStartRef = useRef<number | null>(null);
   const reportedPlayRef = useRef(false);
   const reportedCompleteRef = useRef(false);
