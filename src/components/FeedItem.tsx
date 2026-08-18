@@ -214,12 +214,20 @@ export function FeedItem({
           src={post.media_url}
           poster={post.cover_url ?? undefined}
           playsInline
+          muted={muted}
           loop={!autoAdvance}
           className="absolute inset-0 h-full w-full object-cover"
         />
       ) : (
         <>
-          <audio ref={audioRef} src={post.media_url} loop={!autoAdvance} crossOrigin="anonymous" />
+          {post.cover_url && (
+            <img
+              src={post.cover_url}
+              alt=""
+              className="absolute inset-0 h-full w-full object-cover opacity-60"
+            />
+          )}
+          <audio ref={audioRef} src={post.media_url} loop={!autoAdvance} />
           <AudioVisualizer audio={audioRef.current} playing={playing && active} coverUrl={post.cover_url} />
         </>
       )}
