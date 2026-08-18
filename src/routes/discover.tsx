@@ -7,6 +7,7 @@ import { useAuth } from "@/lib/auth";
 import { Search, Play } from "lucide-react";
 import bgLoop from "@/assets/bg-loop.mp4.asset.json";
 import { cn } from "@/lib/utils";
+import { resolveStorageUrl } from "@/lib/storage";
 
 const MOOD_TAGS = ["chill", "hype", "lofi", "trap", "ambient", "synthwave", "drill", "pop", "rnb", "house"] as const;
 const AI_TOOLS = ["suno", "udio", "riffusion", "stable-audio", "soundraw", "boomy"] as const;
@@ -158,9 +159,9 @@ function PostGrid({ posts }: { posts: Array<{ id: string; title: string; cover_u
         return (
           <Link key={p.id} to="/p/$id" params={{ id: p.id }} className="relative aspect-[3/4] overflow-hidden rounded-md bg-card">
             {p.cover_url ? (
-              <img src={p.cover_url} alt={p.title} className="absolute inset-0 h-full w-full object-cover" loading="lazy" />
+              <img src={resolveStorageUrl(p.cover_url)} alt={p.title} className="absolute inset-0 h-full w-full object-cover" loading="lazy" />
             ) : isVideo && p.media_url ? (
-              <video src={`${p.media_url}#t=0.1`} preload="metadata" muted playsInline className="absolute inset-0 h-full w-full object-cover" />
+              <video src={`${resolveStorageUrl(p.media_url)}#t=0.1`} preload="metadata" muted playsInline className="absolute inset-0 h-full w-full object-cover" />
             ) : (
               <div className="absolute inset-0 bg-gradient-to-br from-card to-background" />
             )}

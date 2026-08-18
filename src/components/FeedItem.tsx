@@ -21,7 +21,7 @@ import { useAuth } from "@/lib/auth";
 import { useNavigate, useRouter } from "@tanstack/react-router";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
-import { recordPlayback } from "@/lib/playback.functions";
+import { resolveStorageUrl } from "@/lib/storage";
 
 export type FeedPost = {
   id: string;
@@ -206,13 +206,16 @@ export function FeedItem({
     }
   };
 
+  const mediaUrl = resolveStorageUrl(post.media_url);
+  const coverUrl = resolveStorageUrl(post.cover_url);
+
   return (
     <section className="relative h-dvh w-full snap-start overflow-hidden bg-black">
       {post.type === "video" ? (
         <video
           ref={videoRef}
-          src={post.media_url}
-          poster={post.cover_url ?? undefined}
+          src={mediaUrl}
+          poster={coverUrl || undefined}
           playsInline
           muted={muted}
           loop={!autoAdvance}
@@ -220,15 +223,15 @@ export function FeedItem({
         />
       ) : (
         <>
-          {post.cover_url && (
+          {coverUrl && (
             <img
-              src={post.cover_url}
+              src={coverUrl}
               alt=""
               className="absolute inset-0 h-full w-full object-cover opacity-60"
             />
           )}
-          <audio ref={audioRef} src={post.media_url} loop={!autoAdvance} />
-          <AudioVisualizer audio={audioRef.current} playing={playing && active} coverUrl={post.cover_url} />
+          <audio ref={audioRef} src={mediaUrl} loop={!autoAdvance} />
+          <AudioVisualizer audio={audioRef.current} playing={playing && active} coverUrl={coverUrl || post.cover_url} />
         </>
       )}
 

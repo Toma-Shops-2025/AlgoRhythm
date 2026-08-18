@@ -12,6 +12,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { Heart, MessageCircle, Share2, ArrowRight, Pencil, RefreshCw, CheckCircle2, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { SITE_URL, SITE_NAME, buildPostTitle, buildPostDescription, absUrl } from "@/lib/seo";
+import { resolveStorageUrl } from "@/lib/storage";
 
 const postQueryOptions = (id: string) =>
   queryOptions({
@@ -158,6 +159,8 @@ function PostPage() {
   const { data } = useSuspenseQuery(postQueryOptions(id));
   if (!data.post) return <AppShell><div className="grid h-dvh place-items-center text-sm text-muted-foreground">Post not found.</div></AppShell>;
   const p = data.post;
+  const mediaUrl = resolveStorageUrl(p.media_url);
+  const coverUrl = resolveStorageUrl(p.cover_url);
   const isOwner = !!user && user.id === p.creator_id;
   const justPosted = search.new === 1 && isOwner;
   const regenCount = search.regen ?? 0;
@@ -206,11 +209,11 @@ function PostPage() {
     <AppShell>
       <div className="relative h-[70dvh] w-full overflow-hidden bg-black" onClick={p.type === "audio" ? togglePlay : undefined}>
         {p.type === "video" ? (
-          <video src={p.media_url} poster={p.cover_url ?? undefined} controls playsInline className="h-full w-full object-contain bg-black" />
+          <video src={mediaUrl} poster={coverUrl || undefined} controls playsInline className="h-full w-full object-contain bg-black" />
         ) : (
           <>
-            <audio ref={audioRef} src={p.media_url} crossOrigin="anonymous" />
-            <AudioVisualizer audio={audioRef.current} playing={playing} coverUrl={p.cover_url} />
+            <audio ref={audioRef} src={mediaUrl} />
+            <AudioVisualizer audio={audioRef.current} playing={playing} coverUrl={coverUrl || p.cover_url} />
           </>
         )}
       </div>

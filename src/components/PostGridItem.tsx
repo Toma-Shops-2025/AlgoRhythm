@@ -7,6 +7,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { resolveStorageUrl } from "@/lib/storage";
 
 type GridPost = {
   id: string;
@@ -31,19 +32,21 @@ export function PostGridItem({
 }) {
   const isVideo = post.type === "video";
   const [menuOpen, setMenuOpen] = useState(false);
+  const coverUrl = resolveStorageUrl(post.cover_url);
+  const mediaUrl = resolveStorageUrl(post.media_url);
 
   const content = (
     <>
-      {post.cover_url ? (
+      {coverUrl ? (
         <img
-          src={post.cover_url}
+          src={coverUrl}
           className="absolute inset-0 h-full w-full object-cover"
           alt={post.title}
           loading="lazy"
         />
-      ) : isVideo && post.media_url ? (
+      ) : isVideo && mediaUrl ? (
         <video
-          src={`${post.media_url}#t=0.1`}
+          src={`${mediaUrl}#t=0.1`}
           preload="metadata"
           muted
           playsInline
