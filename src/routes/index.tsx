@@ -6,6 +6,7 @@ import { FeedItem, type FeedPost } from "@/components/FeedItem";
 import { CommentsSheet } from "@/components/CommentsSheet";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
+import { isPlayablePost } from "@/lib/storage";
 import { useNavigate } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/")({
@@ -72,7 +73,7 @@ function FeedPage() {
       const profileMap = new Map((profiles || []).map(p => [p.id, p]));
 
       // 4. Attach creator info and SHUFFLE the individual page for extra variety
-      const items = shuffle(posts.map(p => ({
+      const items = shuffle(posts.filter(isPlayablePost).map(p => ({
           ...p,
           creator: profileMap.get(p.creator_id) || { display_name: "Creator", handle: "user", avatar_url: null }
       })));
@@ -137,7 +138,7 @@ function FeedPage() {
           <div className="grid h-dvh place-items-center px-8 text-center">
             <div>
               <h2 className="text-3xl text-gradient-gold font-black italic uppercase tracking-tighter">Feed Empty</h2>
-              <p className="mt-2 text-[10px] text-white/40 font-bold uppercase tracking-widest">Connect to the grid to start syncing.</p>
+              <p className="mt-2 text-[10px] text-white/40 font-bold uppercase tracking-widest">Upload a track or video — your post goes live instantly on Supabase Storage.</p>
               <a href="/upload" className="mt-8 inline-block rounded-full bg-gradient-gold px-8 py-3 text-sm font-black text-black uppercase shadow-glow">Create First Post</a>
             </div>
           </div>

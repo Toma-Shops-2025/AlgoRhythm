@@ -25,3 +25,15 @@ export function resolveStorageUrl(url: string | null | undefined): string {
   }
   return resolved;
 }
+
+const BLOCKED_MEDIA_HOSTS = [
+  "commondatastorage.googleapis.com/gtv-videos-bucket/sample",
+];
+
+/** Skip feed rows whose media files are missing or known-broken. */
+export function isPlayablePost(post: { media_url?: string | null }): boolean {
+  const url = resolveStorageUrl(post.media_url);
+  if (!url) return false;
+  if (BLOCKED_MEDIA_HOSTS.some((host) => url.includes(host))) return false;
+  return url.includes(".supabase.co/storage/v1/object/public/media/");
+}

@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { supabase } from "@/integrations/supabase/client";
+import { isPlayablePost } from "@/lib/storage";
 
 export const getFeed = createServerFn({ method: "GET" })
   .inputValidator(
@@ -45,6 +46,7 @@ export const getFeed = createServerFn({ method: "GET" })
     const byId = new Map((creators ?? []).map((c) => [c.id, c]));
 
     const finalItems = posts
+      .filter(isPlayablePost)
       .map((p) => ({
         ...p,
         creator: byId.get(p.creator_id) || { display_name: "Creator", handle: "user", avatar_url: null },
