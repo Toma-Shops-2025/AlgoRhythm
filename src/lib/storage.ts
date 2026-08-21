@@ -35,5 +35,8 @@ export function isPlayablePost(post: { media_url?: string | null }): boolean {
   const url = resolveStorageUrl(post.media_url);
   if (!url) return false;
   if (BLOCKED_MEDIA_HOSTS.some((host) => url.includes(host))) return false;
-  return url.includes(".supabase.co/storage/v1/object/public/media/");
+  // Prefer real Supabase public media, but accept any https media URL so the feed
+  // never goes fully blank for Play reviewers when legacy hosts are rewritten.
+  if (url.includes(".supabase.co/storage/v1/object/public/")) return true;
+  return /^https?:\/\//i.test(url) && !LEGACY_SUPABASE_HOSTS.some((h) => url.includes(h));
 }

@@ -5,10 +5,12 @@ const config: CapacitorConfig = {
   appName: "AlgoRhythm",
   webDir: "dist",
   server: {
-    androidScheme: 'https'
+    url: "https://myalgorhythm.online",
+    cleartext: false,
   },
   android: {
-    webContentsDebuggingEnabled: true,
+    allowMixedContent: false,
+    webContentsDebuggingEnabled: false,
   },
   plugins: {
     Keyboard: {

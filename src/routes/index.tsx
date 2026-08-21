@@ -34,58 +34,77 @@ function FeedPage() {
   // Generate a random seed once per session to maintain consistent "random" order during paging
   const [sessionSeed] = useState(() => Math.floor(Math.random() * 1000));
 
-  const { data, isLoading, error, fetchNextPage, hasNextPage, isFetchingNextPage } = useInfiniteQuery({
-    queryKey: ["feed", "shuffled", sessionSeed],
-    initialPageParam: 0,
-    queryFn: async ({ pageParam = 0 }) => {
-      const pageSize = 12;
+  const { data, isLoading, error, fetchNextPage, hasNextPage, isFetchingNextPage, refetch } =
+    useInfiniteQuery({
+      queryKey: ["feed", "shuffled", sessionSeed],
+      initialPageParam: 0,
+      // Prevent infinite "Initializing Feed..." for Play reviewers / flaky networks.
+      staleTime: 30_000,
+      retry: 1,
+      queryFn: async ({ pageParam = 0 }) => {
+        const pageSize = 12;
+        const withTimeout = <T,>(promise: PromiseLike<T>, ms = 12_000): Promise<T> =>
+          Promise.race([
+            Promise.resolve(promise),
+            new Promise<T>((_, reject) =>
+              window.setTimeout(() => reject(new Error("Feed timed out — check connection and try again")), ms)
+            ),
+          ]);
 
-      // 1. Get total count to calculate a random offset
-      const { count } = await supabase
-        .from("posts")
-        .select("*", { count: 'exact', head: true })
-        .eq("is_published", true);
+        // 1. Get total count to calculate a random offset
+        const { count, error: countError } = await withTimeout(
+          supabase.from("posts").select("*", { count: "exact", head: true }).eq("is_published", true)
+        );
+        if (countError) throw countError;
 
-      const total = count || 0;
+        const total = count || 0;
+        if (total === 0) return { items: [], nextPage: pageParam + 1, hasMore: false };
 
-      // Calculate a random starting point based on the seed
-      // This ensures that page 1 follows page 0 logically within the same session
-      const seedOffset = (sessionSeed % Math.max(1, total - pageSize));
-      const effectiveOffset = (seedOffset + (pageParam * pageSize)) % Math.max(1, total);
+        // Calculate a random starting point based on the seed
+        const seedOffset = sessionSeed % Math.max(1, Math.max(total - pageSize, 1));
+        const effectiveOffset = (seedOffset + pageParam * pageSize) % Math.max(1, total);
 
-      // 2. Fetch posts using the calculated offset
-      const { data: posts, error: postError } = await supabase
-        .from("posts")
-        .select("*")
-        .eq("is_published", true)
-        .range(effectiveOffset, effectiveOffset + pageSize - 1);
+        // 2. Fetch posts using the calculated offset
+        const { data: posts, error: postError } = await withTimeout(
+          supabase
+            .from("posts")
+            .select("*")
+            .eq("is_published", true)
+            .order("created_at", { ascending: false })
+            .range(effectiveOffset, effectiveOffset + pageSize - 1)
+        );
 
-      if (postError) throw postError;
-      if (!posts || posts.length === 0) return { items: [], nextPage: pageParam + 1, hasMore: false };
+        if (postError) throw postError;
+        if (!posts || posts.length === 0) return { items: [], nextPage: pageParam + 1, hasMore: false };
 
-      // 3. Fetch creators
-      const creatorIds = Array.from(new Set(posts.map(p => p.creator_id)));
-      const { data: profiles } = await supabase
-        .from("profiles")
-        .select("id, handle, display_name, avatar_url")
-        .in("id", creatorIds);
+        // 3. Fetch creators
+        const creatorIds = Array.from(new Set(posts.map((p) => p.creator_id)));
+        const { data: profiles } = await withTimeout(
+          supabase.from("profiles").select("id, handle, display_name, avatar_url").in("id", creatorIds)
+        );
 
-      const profileMap = new Map((profiles || []).map(p => [p.id, p]));
+        const profileMap = new Map((profiles || []).map((p) => [p.id, p]));
 
-      // 4. Attach creator info and SHUFFLE the individual page for extra variety
-      const items = shuffle(posts.filter(isPlayablePost).map(p => ({
+        // Prefer playable media, but never wipe the whole feed if filters are too strict.
+        const mapped = posts.map((p) => ({
           ...p,
-          creator: profileMap.get(p.creator_id) || { display_name: "Creator", handle: "user", avatar_url: null }
-      })));
+          creator: profileMap.get(p.creator_id) || {
+            display_name: "Creator",
+            handle: "user",
+            avatar_url: null,
+          },
+        }));
+        const playable = mapped.filter(isPlayablePost);
+        const items = shuffle(playable.length > 0 ? playable : mapped);
 
-      return {
+        return {
           items,
           nextPage: pageParam + 1,
-          hasMore: total > (pageParam + 1) * pageSize
-      };
-    },
-    getNextPageParam: (lastPage) => lastPage.hasMore ? lastPage.nextPage : undefined,
-  });
+          hasMore: total > (pageParam + 1) * pageSize,
+        };
+      },
+      getNextPageParam: (lastPage) => (lastPage.hasMore ? lastPage.nextPage : undefined),
+    });
 
   const basePosts = useMemo(() => {
     return (data?.pages.flatMap((page) => page.items) ?? []) as unknown as FeedPost[];
@@ -120,7 +139,7 @@ function FeedPage() {
                   <div>
                       <h2 className="text-xl text-red-500 font-bold mb-2 tracking-tighter uppercase italic">Sync Error</h2>
                       <p className="text-white/40 text-[10px] font-bold uppercase tracking-widest">{(error as any).message}</p>
-                      <button onClick={() => window.location.reload()} className="mt-8 bg-primary text-black px-10 py-3 rounded-full font-black uppercase text-xs shadow-glow">Retry Sync</button>
+                      <button onClick={() => refetch()} className="mt-8 bg-primary text-black px-10 py-3 rounded-full font-black uppercase text-xs shadow-glow">Retry Sync</button>
                   </div>
               </div>
           </AppShell>
