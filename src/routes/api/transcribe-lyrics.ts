@@ -1,21 +1,20 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { createClient } from "@supabase/supabase-js";
 import { userIsPro } from "@/lib/pro.server";
-
-const GATEWAY = "https://ai.gateway.lovable.dev/v1";
+import { geminiTranscribeAudio } from "@/lib/gemini.server";
 
 type LyricLine = { start: number; end: number; text: string };
 
-function pickAudioFormat(mime: string, name: string): string {
+function pickAudioMime(mime: string, name: string): string {
   const m = mime.toLowerCase();
-  if (m.includes("mpeg") || m.includes("mp3") || /\.mp3$/i.test(name)) return "mp3";
-  if (m.includes("wav") || /\.wav$/i.test(name)) return "wav";
-  if (m.includes("ogg") || /\.ogg$/i.test(name)) return "ogg";
-  if (m.includes("flac") || /\.flac$/i.test(name)) return "flac";
-  if (m.includes("aac") || /\.aac$/i.test(name)) return "aac";
-  if (m.includes("webm") || /\.webm$/i.test(name)) return "webm";
-  if (m.includes("mp4") || m.includes("m4a") || /\.(m4a|mp4)$/i.test(name)) return "m4a";
-  return "mp3";
+  if (m.includes("mpeg") || m.includes("mp3") || /\.mp3$/i.test(name)) return "audio/mpeg";
+  if (m.includes("wav") || /\.wav$/i.test(name)) return "audio/wav";
+  if (m.includes("ogg") || /\.ogg$/i.test(name)) return "audio/ogg";
+  if (m.includes("flac") || /\.flac$/i.test(name)) return "audio/flac";
+  if (m.includes("aac") || /\.aac$/i.test(name)) return "audio/aac";
+  if (m.includes("webm") || /\.webm$/i.test(name)) return "audio/webm";
+  if (m.includes("mp4") || m.includes("m4a") || /\.(m4a|mp4)$/i.test(name)) return "audio/mp4";
+  return mime || "audio/mpeg";
 }
 
 function toBase64(bytes: Uint8Array): string {
@@ -41,11 +40,6 @@ export const Route = createFileRoute("/api/transcribe-lyrics")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        const apiKey = process.env.LOVABLE_API_KEY;
-        if (!apiKey) {
-          return new Response(JSON.stringify({ error: "LOVABLE_API_KEY missing" }), { status: 500 });
-        }
-        // Require an authenticated user — this endpoint calls the paid AI gateway.
         const authHeader = request.headers.get("authorization");
         if (!authHeader?.startsWith("Bearer ")) {
           return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
@@ -64,12 +58,15 @@ export const Route = createFileRoute("/api/transcribe-lyrics")({
           return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401 });
         }
         const userId = claims.claims.sub as string;
-        if (!(await userIsPro(userId))) {
+        const email =
+          typeof claims.claims.email === "string" ? (claims.claims.email as string) : null;
+        if (!(await userIsPro(userId, email))) {
           return new Response(
             JSON.stringify({ error: "AI lyric transcription is a Pro feature. Upgrade to Pro to unlock it." }),
             { status: 402 },
           );
         }
+
         const form = await request.formData();
         const file = form.get("audio");
         const durationRaw = form.get("duration");
@@ -83,7 +80,7 @@ export const Route = createFileRoute("/api/transcribe-lyrics")({
 
         const buf = new Uint8Array(await file.arrayBuffer());
         const b64 = toBase64(buf);
-        const format = pickAudioFormat(file.type || "", file.name || "");
+        const mimeType = pickAudioMime(file.type || "", file.name || "");
 
         const prompt =
           "Transcribe the vocals of this song into lyric lines with timing. " +
@@ -92,62 +89,41 @@ export const Route = createFileRoute("/api/transcribe-lyrics")({
           "with no markdown. Keep each line short (3-10 words). " +
           "If the song is instrumental or you cannot make out lyrics, return {\"lines\":[]}.";
 
-        const body = {
-          model: "google/gemini-2.5-flash",
-          messages: [
-            {
-              role: "user",
-              content: [
-                { type: "text", text: prompt },
-                { type: "input_audio", input_audio: { data: b64, format } },
-              ],
-            },
-          ],
-          response_format: { type: "json_object" },
-        };
-
-        const res = await fetch(`${GATEWAY}/chat/completions`, {
-          method: "POST",
-          headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-        });
-        if (!res.ok) {
-          const text = await res.text().catch(() => "");
-          return new Response(JSON.stringify({ error: `Transcription failed: ${res.status} ${text.slice(0, 300)}` }), { status: 502 });
-        }
-        const json = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
-        const content = json.choices?.[0]?.message?.content ?? "";
-        let parsed: { lines?: unknown };
         try {
-          parsed = JSON.parse(content);
-        } catch {
-          const match = content.match(/\{[\s\S]*\}/);
-          parsed = match ? JSON.parse(match[0]) : {};
+          const content = await geminiTranscribeAudio({ prompt, mimeType, base64: b64 });
+          let parsed: { lines?: unknown };
+          try {
+            parsed = JSON.parse(content);
+          } catch {
+            const match = content.match(/\{[\s\S]*\}/);
+            parsed = match ? JSON.parse(match[0]) : {};
+          }
+          let lines: LyricLine[] = [];
+          if (Array.isArray(parsed.lines)) {
+            lines = (parsed.lines as Array<Record<string, unknown>>)
+              .map((l) => ({
+                start: Number(l.start ?? 0),
+                end: Number(l.end ?? 0),
+                text: String(l.text ?? "").trim(),
+              }))
+              .filter((l) => l.text.length > 0 && Number.isFinite(l.start) && Number.isFinite(l.end));
+          }
+          if (lines.length === 0 && duration > 0 && content.trim()) {
+            lines = distributeEvenly(content, duration);
+          }
+          lines.sort((a, b) => a.start - b.start);
+          if (duration > 0) {
+            lines = lines.map((l) => ({
+              ...l,
+              start: Math.max(0, Math.min(duration, l.start)),
+              end: Math.max(0, Math.min(duration, l.end || l.start + 3)),
+            }));
+          }
+          return Response.json({ lines });
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : "Transcription failed";
+          return new Response(JSON.stringify({ error: msg }), { status: 502 });
         }
-        let lines: LyricLine[] = [];
-        if (Array.isArray(parsed.lines)) {
-          lines = (parsed.lines as Array<Record<string, unknown>>)
-            .map((l) => ({
-              start: Number(l.start ?? 0),
-              end: Number(l.end ?? 0),
-              text: String(l.text ?? "").trim(),
-            }))
-            .filter((l) => l.text.length > 0 && Number.isFinite(l.start) && Number.isFinite(l.end));
-        }
-        // If model returned text only, try to distribute evenly across duration
-        if (lines.length === 0 && duration > 0 && content.trim()) {
-          lines = distributeEvenly(content, duration);
-        }
-        // Clamp + sort
-        lines.sort((a, b) => a.start - b.start);
-        if (duration > 0) {
-          lines = lines.map((l) => ({
-            ...l,
-            start: Math.max(0, Math.min(duration, l.start)),
-            end: Math.max(0, Math.min(duration, l.end || l.start + 3)),
-          }));
-        }
-        return Response.json({ lines });
       },
     },
   },

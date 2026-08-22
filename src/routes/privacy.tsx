@@ -40,7 +40,7 @@ function PrivacyPage() {
         <Section title="How we use your data">
           <ul>
             <li>Provide the service: hosting your posts, the feed, comments, likes, follows, tipping, and Pro subscriptions.</li>
-            <li>Process audio with AI providers (e.g. Google Gemini via Lovable AI Gateway) to transcribe lyrics, generate cover art, scene images, and post metadata when you opt in.</li>
+            <li>Process audio with AI providers (Google Gemini) to transcribe lyrics, generate cover art, scene images, and post metadata when you opt in.</li>
             <li>Prevent abuse, enforce our Terms, comply with legal obligations.</li>
             <li>Email you about your account or important changes (no marketing email is sent without consent).</li>
           </ul>
@@ -50,8 +50,8 @@ function PrivacyPage() {
           <ul>
             <li><b>Supabase</b> — database, auth, file storage.</li>
             <li><b>Stripe</b> — payments, subscriptions, tax forms.</li>
-            <li><b>Google / Lovable AI Gateway</b> — AI generation and transcription of content you submit for those features.</li>
-            <li><b>Cloudflare / Lovable</b> — hosting and edge delivery.</li>
+            <li><b>Google Gemini</b> — AI generation and transcription of content you submit for those features.</li>
+            <li><b>Netlify</b> — hosting and edge delivery.</li>
           </ul>
           <p>We do not sell your personal data.</p>
         </Section>

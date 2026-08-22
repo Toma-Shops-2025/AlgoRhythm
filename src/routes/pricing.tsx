@@ -16,7 +16,7 @@ export const Route = createFileRoute("/pricing")({
       { title: "AlgoRhythm Pro — Pricing" },
       { name: "description", content: "Go Pro on AlgoRhythm for ad-free listening, higher quality, and exclusive feeds." },
       { property: "og:title", content: "AlgoRhythm Pro" },
-      { property: "og:description", content: "$4.99/mo or $29.99/yr — support the platform and unlock Pro." },
+      { property: "og:description", content: "$6.99/mo or $29.99/yr — support the platform and unlock Pro." },
     ],
     links: [{ rel: "canonical", href: "https://myalgorhythm.online/pricing" }],
   }),
@@ -72,11 +72,12 @@ function PricingPage() {
 
         <ul className="mt-8 space-y-3 text-sm">
           {[
+            "AI title, caption & hashtags",
+            "AI cover art",
+            "AI lyric videos",
             "Ad-free listening",
             "Higher audio quality",
-            "Exclusive Pro feeds",
             "Pro badge on your profile",
-            "Early access to new features",
           ].map((f) => (
             <li key={f} className="flex items-center gap-3">
               <Check className="h-4 w-4 text-gold" /> {f}
@@ -105,7 +106,7 @@ function PricingPage() {
               className="rounded-xl border border-border px-5 py-4 text-left">
               <div className="flex items-baseline justify-between">
                 <span className="font-semibold">Monthly</span>
-                <span className="text-lg font-bold">$4.99<span className="text-xs font-normal text-muted-foreground">/mo</span></span>
+                <span className="text-lg font-bold">$6.99<span className="text-xs font-normal text-muted-foreground">/mo</span></span>
               </div>
               <div className="text-xs text-muted-foreground">Cancel anytime</div>
             </button>

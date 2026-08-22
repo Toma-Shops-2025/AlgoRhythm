@@ -3,6 +3,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { getStripeEnvironment } from "@/lib/stripe";
 import { useAuth } from "@/lib/auth";
 
+const ADMIN_EMAILS = new Set(["admin@myalgorhythm.online"]);
+
 type SubRow = {
   id: string;
   kind: "pro" | "creator";
@@ -24,24 +26,41 @@ function isActive(s: SubRow): boolean {
 export function useProSubscription() {
   const { user } = useAuth();
   const [sub, setSub] = useState<SubRow | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!user) { setSub(null); setLoading(false); return; }
+    if (!user) {
+      setSub(null);
+      setIsAdmin(false);
+      setLoading(false);
+      return;
+    }
     let mounted = true;
     const env = getStripeEnvironment();
+    const emailAdmin = !!(user.email && ADMIN_EMAILS.has(user.email.trim().toLowerCase()));
+
     const fetch = async () => {
-      const { data } = await supabase
-        .from("subscriptions")
-        .select("*")
-        .eq("user_id", user.id)
-        .eq("kind", "pro")
-        .eq("environment", env)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
+      const [{ data: subData }, { data: roleData }] = await Promise.all([
+        supabase
+          .from("subscriptions")
+          .select("*")
+          .eq("user_id", user.id)
+          .eq("kind", "pro")
+          .eq("environment", env)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+        supabase
+          .from("user_roles")
+          .select("role")
+          .eq("user_id", user.id)
+          .eq("role", "admin")
+          .maybeSingle(),
+      ]);
       if (!mounted) return;
-      setSub((data as SubRow | null) ?? null);
+      setSub((subData as SubRow | null) ?? null);
+      setIsAdmin(emailAdmin || !!roleData);
       setLoading(false);
     };
     fetch();
@@ -54,7 +73,8 @@ export function useProSubscription() {
     return () => { mounted = false; supabase.removeChannel(ch); };
   }, [user]);
 
-  return { subscription: sub, isPro: sub ? isActive(sub) : false, loading };
+  const isPro = isAdmin || (sub ? isActive(sub) : false);
+  return { subscription: sub, isPro, isAdmin, loading };
 }
 
 export function useCreatorSubscription(creatorId: string | undefined) {

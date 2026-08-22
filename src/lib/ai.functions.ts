@@ -2,8 +2,11 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { userIsPro, ProRequiredError } from "./pro.server";
+import { geminiJsonObject, geminiGenerateImage } from "./gemini.server";
 
-const GATEWAY = "https://ai.gateway.lovable.dev/v1";
+function claimEmail(claims: { email?: unknown } | undefined): string | null {
+  return typeof claims?.email === "string" ? claims.email : null;
+}
 
 export const generatePostMetadata = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -16,9 +19,8 @@ export const generatePostMetadata = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    if (!(await userIsPro(context.userId))) throw new ProRequiredError();
-    const apiKey = process.env.LOVABLE_API_KEY;
-    if (!apiKey) throw new Error("LOVABLE_API_KEY is not configured");
+    const email = claimEmail(context.claims);
+    if (!(await userIsPro(context.userId, email))) throw new ProRequiredError();
 
     const kind = data.mediaType ?? "audio";
     const system =
@@ -32,33 +34,7 @@ export const generatePostMetadata = createServerFn({ method: "POST" })
       `- "caption": string, 1-3 short sentences (max ~220 chars), hook the listener\n` +
       `- "hashtags": array of 6-10 lowercase hashtag strings WITHOUT the # symbol, no spaces, relevant to genre/mood/AI-music culture`;
 
-    const res = await fetch(`${GATEWAY}/chat/completions`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          { role: "system", content: system },
-          { role: "user", content: user },
-        ],
-        response_format: { type: "json_object" },
-      }),
-    });
-    if (!res.ok) {
-      const text = await res.text().catch(() => "");
-      throw new Error(`Metadata generation failed: ${res.status} ${text}`);
-    }
-    const json = (await res.json()) as {
-      choices?: Array<{ message?: { content?: string } }>;
-    };
-    const content = json.choices?.[0]?.message?.content ?? "";
-    let parsed: { title?: string; caption?: string; hashtags?: unknown };
-    try {
-      parsed = JSON.parse(content);
-    } catch {
-      const match = content.match(/\{[\s\S]*\}/);
-      parsed = match ? JSON.parse(match[0]) : {};
-    }
+    const parsed = await geminiJsonObject(system, user);
     const hashtags = Array.isArray(parsed.hashtags)
       ? (parsed.hashtags as unknown[])
           .map((t) => String(t).replace(/^#/, "").trim().toLowerCase().replace(/\s+/g, ""))
@@ -72,39 +48,11 @@ export const generatePostMetadata = createServerFn({ method: "POST" })
     };
   });
 
-// Lovable AI Gateway exposes image generation via the chat/completions
-// endpoint on Gemini "image" models. The model returns the image as a
-// data URL inside choices[0].message.images[].image_url.url. We strip the
-// data-URL prefix and return raw base64.
-async function generateOneImage(apiKey: string, prompt: string): Promise<string> {
-  const res = await fetch(`${GATEWAY}/chat/completions`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: "google/gemini-2.5-flash-image",
-      messages: [{ role: "user", content: prompt }],
-      modalities: ["image", "text"],
-    }),
-  });
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    throw new Error(`Image generation failed: ${res.status} ${text}`);
-  }
-  const json = (await res.json()) as {
-    choices?: Array<{ message?: { images?: Array<{ image_url?: { url?: string } }> } }>;
-  };
-  const url = json.choices?.[0]?.message?.images?.[0]?.image_url?.url;
-  if (!url) throw new Error("No image returned");
-  const b64 = url.startsWith("data:") ? url.split(",")[1] : url;
-  if (!b64) throw new Error("Empty image payload");
-  return b64;
-}
-
-async function generateOneImageWithRetry(apiKey: string, prompt: string, attempts = 3): Promise<string> {
+async function generateOneImageWithRetry(prompt: string, attempts = 3): Promise<string> {
   let lastErr: unknown;
   for (let i = 0; i < attempts; i++) {
     try {
-      return await generateOneImage(apiKey, prompt);
+      return await geminiGenerateImage(prompt);
     } catch (e) {
       lastErr = e;
       await new Promise((r) => setTimeout(r, 400 * (i + 1)));
@@ -119,13 +67,11 @@ export const generateCoverImage = createServerFn({ method: "POST" })
     z.object({ prompt: z.string().min(2).max(500) }).parse(input),
   )
   .handler(async ({ data, context }) => {
-    if (!(await userIsPro(context.userId))) throw new ProRequiredError();
-    const apiKey = process.env.LOVABLE_API_KEY;
-    if (!apiKey) throw new Error("LOVABLE_API_KEY is not configured");
+    const email = claimEmail(context.claims);
+    if (!(await userIsPro(context.userId, email))) throw new ProRequiredError();
 
     const prompt = `Square album cover art for a track titled or themed: "${data.prompt}". Striking, modern, high-contrast, cinematic lighting, no text, no watermark.`;
-
-    const b64 = await generateOneImage(apiKey, prompt);
+    const b64 = await geminiGenerateImage(prompt);
     return { b64 };
   });
 
@@ -142,16 +88,14 @@ export const generateMusicVideoScenes = createServerFn({ method: "POST" })
         .parse(input),
   )
   .handler(async ({ data, context }) => {
-    if (!(await userIsPro(context.userId))) throw new ProRequiredError();
-    const apiKey = process.env.LOVABLE_API_KEY;
-    if (!apiKey) throw new Error("LOVABLE_API_KEY is not configured");
+    const email = claimEmail(context.claims);
+    if (!(await userIsPro(context.userId, email))) throw new ProRequiredError();
 
     const count = data.count ?? 5;
     const style =
       data.style?.trim() ||
       "cinematic music video still, dramatic lighting, rich color grading, shallow depth of field, 35mm film grain, no text, no watermark";
 
-    // Diverse shot angles so the slideshow feels like an edited video.
     const shots = [
       "wide establishing shot",
       "intimate close-up portrait",
@@ -167,16 +111,13 @@ export const generateMusicVideoScenes = createServerFn({ method: "POST" })
       `${shots[i % shots.length]} for a music video about: "${data.prompt}". ${style}. 9:16 vertical framing.`,
     );
 
-    // Generate in parallel; tolerate individual failures (safety filters, transient errors)
-    // so one bad scene doesn't kill the whole music video.
     const settled = await Promise.all(
-      prompts.map((p) => generateOneImageWithRetry(apiKey, p).catch(() => null)),
+      prompts.map((p) => generateOneImageWithRetry(p).catch(() => null)),
     );
     const good = settled.filter((b): b is string => !!b);
     if (good.length < 2) {
       throw new Error("Could not generate enough scenes. Please try again with a different description.");
     }
-    // Fill any missing slots by recycling successful images so the slideshow stays the requested length.
     const images = settled.map((b, i) => b ?? good[i % good.length]);
     return { images };
   });

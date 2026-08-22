@@ -16,6 +16,50 @@ type PortalResult = { url: string } | { error: string };
 
 const EnvSchema = z.enum(["sandbox", "live"]);
 
+/** Pro monthly is $6.99; yearly stays $29.99 (best value). */
+const PRO_AMOUNTS: Record<"pro_monthly" | "pro_yearly", number> = {
+  pro_monthly: 699,
+  pro_yearly: 2999,
+};
+
+async function ensureProPrice(
+  stripe: Stripe,
+  lookupKey: "pro_monthly" | "pro_yearly",
+): Promise<string> {
+  const want = PRO_AMOUNTS[lookupKey];
+  const listed = await stripe.prices.list({ lookup_keys: [lookupKey], active: true });
+  const existing = listed.data[0];
+  if (existing?.unit_amount === want) return existing.id;
+
+  let productId =
+    typeof existing?.product === "string"
+      ? existing.product
+      : existing && typeof existing.product === "object" && existing.product && "id" in existing.product
+        ? (existing.product as { id: string }).id
+        : undefined;
+
+  if (!productId) {
+    const found = await stripe.products.search({
+      query: "name:'AlgoRhythm Pro' AND active:'true'",
+      limit: 1,
+    });
+    productId = found.data[0]?.id;
+  }
+  if (!productId) {
+    productId = (await stripe.products.create({ name: "AlgoRhythm Pro" })).id;
+  }
+
+  const created = await stripe.prices.create({
+    product: productId,
+    currency: "usd",
+    unit_amount: want,
+    recurring: { interval: lookupKey === "pro_yearly" ? "year" : "month" },
+    lookup_key: lookupKey,
+    transfer_lookup_key: true,
+  });
+  return created.id;
+}
+
 async function getCreatorPayoutAccount(
   creatorId: string,
   env: StripeEnv,
@@ -74,15 +118,13 @@ export const createProCheckout = createServerFn({ method: "POST" })
   .handler(async ({ data, context }): Promise<CheckoutResult> => {
     try {
       const stripe = createStripeClient(data.environment);
-      const prices = await stripe.prices.list({ lookup_keys: [data.priceId] });
-      if (!prices.data.length) throw new Error("Price not found");
-      const price = prices.data[0];
+      const priceId = await ensureProPrice(stripe, data.priceId);
       const customerId = await resolveOrCreateCustomer(stripe, {
         userId: context.userId,
         email: context.claims.email,
       });
       const session = await stripe.checkout.sessions.create({
-        line_items: [{ price: price.id, quantity: 1 }],
+        line_items: [{ price: priceId, quantity: 1 }],
         mode: "subscription",
         ui_mode: "embedded_page",
         return_url: data.returnUrl,

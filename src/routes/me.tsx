@@ -339,7 +339,7 @@ function MePage() {
           <Link to="/pricing"
             className="mt-5 flex items-center justify-between rounded-xl border border-border px-4 py-3 text-sm">
             <span className="flex items-center gap-2"><Crown className="h-4 w-4 text-gold" /> Go Pro</span>
-            <span className="text-xs text-muted-foreground">From $4.99/mo →</span>
+            <span className="text-xs text-muted-foreground">From $6.99/mo →</span>
           </Link>
         )}
 
