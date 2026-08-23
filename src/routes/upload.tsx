@@ -9,6 +9,7 @@ import { audioToVideo, audioToLyricVideo, b64ToFile, loadImageFromB64, type Lyri
 import { AppShell } from "@/components/AppShell";
 import { toast } from "sonner";
 import { Music, Film, Image as ImageIcon, Loader2, Sparkles, Video as VideoIcon, Type } from "lucide-react";
+import { toastErrorMessage } from "@/lib/utils";
 
 export const Route = createFileRoute("/upload")({
   validateSearch: (search: Record<string, unknown>) => {
@@ -91,7 +92,7 @@ function UploadPage() {
       setCover(file);
       toast.success("Cover generated");
     } catch (e) {
-      toast.error((e as Error).message);
+      toast.error(toastErrorMessage(e, "Cover generation failed"));
     } finally {
       setGenerating(false);
     }
@@ -109,7 +110,7 @@ function UploadPage() {
       if (meta.hashtags.length) setHashtags(meta.hashtags.map((h) => `#${h}`).join(" "));
       toast.success("Title, caption & hashtags generated");
     } catch (e) {
-      toast.error((e as Error).message);
+      toast.error(toastErrorMessage(e, "Could not generate caption"));
     } finally {
       setGenMetaLoading(false);
     }
@@ -213,7 +214,7 @@ function UploadPage() {
         search: { new: 1, regen: regenCount || undefined },
       });
     } catch (e) {
-      toast.error((e as Error).message);
+      toast.error(toastErrorMessage(e, "Could not publish"));
     } finally {
       setBusy(false);
       setBusyLabel("");

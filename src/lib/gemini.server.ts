@@ -5,15 +5,13 @@
 
 const BASE = "https://generativelanguage.googleapis.com/v1beta";
 
-/** Prefer cheap Flash-Lite; fall back to 3.6 Flash (2.x models are shut down). */
-const TEXT_MODELS = [
-  "gemini-3.5-flash-lite",
-  "gemini-3.6-flash",
-] as const;
+/** Prefer Flash-Lite; fall back to Flash. Keep requests short for Netlify SSR. */
+const TEXT_MODELS = ["gemini-2.5-flash-lite", "gemini-2.5-flash"] as const;
+const FETCH_MS = 12_000;
 
 export const GEMINI_TEXT_MODEL = TEXT_MODELS[0];
 /** Image model for covers + lyric scenes. */
-export const GEMINI_IMAGE_MODEL = "gemini-3.1-flash-lite-image";
+export const GEMINI_IMAGE_MODEL = "gemini-2.5-flash-image";
 
 export function getGeminiApiKey(): string {
   const key = process.env.GEMINI_API_KEY?.trim();
@@ -39,14 +37,25 @@ async function generateContent(
   body: Record<string, unknown>,
 ): Promise<GeminiResponse> {
   const key = getGeminiApiKey();
-  const res = await fetch(`${BASE}/models/${model}:generateContent`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-goog-api-key": key,
-    },
-    body: JSON.stringify(body),
-  });
+  let res: Response;
+  try {
+    res = await fetch(`${BASE}/models/${model}:generateContent`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-goog-api-key": key,
+      },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(FETCH_MS),
+    });
+  } catch (e) {
+    const name = e instanceof Error ? e.name : "";
+    if (name === "TimeoutError" || name === "AbortError") {
+      throw new Error(`${model}: timed out — try again in a moment`);
+    }
+    throw e instanceof Error ? e : new Error(String(e));
+  }
+
   const json = (await res.json()) as GeminiResponse;
   if (!res.ok) {
     throw new Error(json.error?.message ?? `Gemini error ${res.status}`);
