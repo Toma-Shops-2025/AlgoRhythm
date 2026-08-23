@@ -217,6 +217,8 @@ export function FeedItem({
           ref={videoRef}
           src={mediaUrl}
           poster={coverUrl || undefined}
+          crossOrigin="anonymous"
+          preload="auto"
           playsInline
           muted={muted}
           loop={!autoAdvance}
@@ -231,7 +233,14 @@ export function FeedItem({
               className="absolute inset-0 h-full w-full object-cover opacity-60"
             />
           )}
-          <audio ref={audioRef} src={mediaUrl} loop={!autoAdvance} />
+          <audio
+            ref={audioRef}
+            src={mediaUrl}
+            crossOrigin="anonymous"
+            preload="auto"
+            muted={muted}
+            loop={!autoAdvance}
+          />
           <AudioVisualizer audio={audioRef.current} playing={playing && active} coverUrl={coverUrl || post.cover_url} />
         </>
       )}

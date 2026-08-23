@@ -224,45 +224,6 @@ function PostContent({
 
   useEffect(() => {
     const el = p.type === "video" ? videoRef.current : audioRef.current;
-    if (!el || !mediaUrl) return;
-
-    let cancelled = false;
-    const tryPlay = async (forceMuted: boolean) => {
-      el.muted = forceMuted;
-      el.volume = volume;
-      try {
-        await el.play();
-        if (cancelled) return;
-        setPlaying(true);
-        if (forceMuted) setMuted(true);
-      } catch {
-        if (cancelled) return;
-        if (!forceMuted) {
-          await tryPlay(true);
-          return;
-        }
-        setPlaying(false);
-      }
-    };
-
-    const onCanPlay = () => {
-      void tryPlay(false);
-    };
-
-    if (el.readyState >= 2) void tryPlay(false);
-    else el.addEventListener("canplay", onCanPlay, { once: true });
-
-    return () => {
-      cancelled = true;
-      el.removeEventListener("canplay", onCanPlay);
-      el.pause();
-    };
-    // Autoplay once per media; mute/volume handled separately.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [p.id, p.type, mediaUrl]);
-
-  useEffect(() => {
-    const el = p.type === "video" ? videoRef.current : audioRef.current;
     if (!el) return;
     el.muted = muted;
     el.volume = volume;
@@ -281,16 +242,36 @@ function PostContent({
     }
   };
 
-  const togglePlay = () => {
+  const togglePlay = async () => {
     const el = p.type === "video" ? videoRef.current : audioRef.current;
-    if (!el) return;
-    if (el.paused) {
-      el.play()
-        .then(() => setPlaying(true))
-        .catch(() => setPlaying(false));
-    } else {
+    if (!el || !mediaUrl) return;
+
+    if (!el.paused) {
       el.pause();
       setPlaying(false);
+      return;
+    }
+
+    // User gesture — start with sound unless they explicitly muted.
+    if (volume > 0) {
+      el.muted = false;
+      setMuted(false);
+    }
+    el.volume = volume;
+
+    try {
+      await el.play();
+      setPlaying(true);
+    } catch {
+      el.muted = true;
+      setMuted(true);
+      try {
+        await el.play();
+        setPlaying(true);
+      } catch {
+        setPlaying(false);
+        toast.error("Could not play this file — check your connection and try again.");
+      }
     }
   };
 
@@ -320,15 +301,36 @@ function PostContent({
             ref={videoRef}
             src={mediaUrl || undefined}
             poster={coverUrl || undefined}
+            crossOrigin="anonymous"
+            preload="auto"
             playsInline
             loop
             muted={muted}
             className="h-full w-full object-contain bg-black"
             onClick={togglePlay}
+            onPlay={() => setPlaying(true)}
+            onPause={() => setPlaying(false)}
+            onError={() => {
+              setPlaying(false);
+              toast.error("Could not load video — try refreshing.");
+            }}
           />
         ) : (
           <>
-            <audio ref={audioRef} src={mediaUrl || undefined} loop />
+            <audio
+              ref={audioRef}
+              src={mediaUrl || undefined}
+              crossOrigin="anonymous"
+              preload="auto"
+              loop
+              muted={muted}
+              onPlay={() => setPlaying(true)}
+              onPause={() => setPlaying(false)}
+              onError={() => {
+                setPlaying(false);
+                toast.error("Could not load audio — try refreshing.");
+              }}
+            />
             <AudioVisualizer
               audio={audioEl}
               playing={playing}

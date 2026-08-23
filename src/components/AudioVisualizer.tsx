@@ -1,5 +1,8 @@
 import { useEffect, useRef } from "react";
 
+/** Web Audio can only attach once per media element. */
+const wiredElements = new WeakSet<HTMLMediaElement>();
+
 // Lightweight canvas-based audio visualizer. When given an HTMLAudioElement,
 // it draws an animated waveform synced to the audio frequency data.
 export function AudioVisualizer({
@@ -20,29 +23,60 @@ export function AudioVisualizer({
     if (!audio || !playing) return;
     let cancelled = false;
 
+    const drawIdle = () => {
+      const canvas = canvasRef.current;
+      const c = canvas?.getContext("2d");
+      if (!canvas || !c || cancelled) return;
+
+      const w = canvas.width;
+      const h = canvas.height;
+      c.clearRect(0, 0, w, h);
+      c.strokeStyle = "rgba(201, 168, 76, 0.35)";
+      c.setLineDash([6, 8]);
+      c.beginPath();
+      c.moveTo(0, h / 2);
+      c.lineTo(w, h / 2);
+      c.stroke();
+      c.setLineDash([]);
+    };
+
     const setup = async () => {
+      const canvas = canvasRef.current;
+      const c = canvas?.getContext("2d");
+      if (!canvas || !c) return;
+
+      const corsReady =
+        audio.crossOrigin === "anonymous" || audio.crossOrigin === "use-credentials";
+
+      if (!corsReady) {
+        drawIdle();
+        return;
+      }
+
       try {
         if (!ctxRef.current) {
-          const AC = (window.AudioContext ||
-            (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext);
-          const ctx = new AC();
-          ctxRef.current = ctx;
+          const AC =
+            window.AudioContext ||
+            (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+          ctxRef.current = new AC();
+        }
+        const ctx = ctxRef.current;
+        if (ctx.state === "suspended") await ctx.resume();
+
+        if (!wiredElements.has(audio)) {
           const src = ctx.createMediaElementSource(audio);
           const analyser = ctx.createAnalyser();
           analyser.fftSize = 256;
           src.connect(analyser);
           analyser.connect(ctx.destination);
           analyserRef.current = analyser;
+          wiredElements.add(audio);
         }
-        if (ctxRef.current.state === "suspended") await ctxRef.current.resume();
 
-        const canvas = canvasRef.current;
         const analyser = analyserRef.current;
-        if (!canvas || !analyser || cancelled) return;
+        if (!analyser || cancelled) return;
 
         const data = new Uint8Array(analyser.frequencyBinCount);
-        const c = canvas.getContext("2d");
-        if (!c) return;
 
         const draw = () => {
           if (cancelled) return;
@@ -70,10 +104,12 @@ export function AudioVisualizer({
         };
         draw();
       } catch (e) {
-        console.warn("Visualizer error", e);
+        console.warn("Visualizer unavailable — audio still plays natively", e);
+        drawIdle();
       }
     };
-    setup();
+
+    void setup();
 
     return () => {
       cancelled = true;
