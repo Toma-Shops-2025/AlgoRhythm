@@ -303,9 +303,16 @@ function UploadPage() {
               Compress the MP4 (or export a smaller version), then choose the new file and publish again.
               Your caption and tags stay filled in — you only need to swap the video.
             </p>
+            <a
+              href="https://videocompress.ai"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center justify-center rounded-md border border-gold/40 bg-gold/10 px-4 py-2.5 text-sm font-medium text-gold hover:bg-gold/15"
+            >
+              Compress free at videocompress.ai →
+            </a>
             <ul className="list-disc space-y-1.5 pl-4 text-xs leading-relaxed">
               <li>Aim for under 50MB (720p / lower bitrate works great for feed posts)</li>
-              <li>Free tools like HandBrake or CapCut export work well</li>
               <li>Or post the audio track first, then add video later</li>
             </ul>
           </div>
@@ -348,7 +355,16 @@ function UploadPage() {
           />
           <p className="text-[11px] leading-relaxed text-muted-foreground">
             Music videos work best under <span className="text-foreground">50MB</span>. Larger files usually fail —
-            compress the MP4, then upload again.
+            compress at{" "}
+            <a
+              href="https://videocompress.ai"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-gold underline underline-offset-2 hover:text-gold/80"
+            >
+              videocompress.ai
+            </a>
+            , then upload again.
           </p>
           {(type === "audio" || type === "video") && (
             <div className="space-y-2">
