@@ -82,6 +82,7 @@ export const createPost = createServerFn({ method: "POST" })
         tags: data.tags ?? [],
         ai_tools: data.aiTools ?? [],
         duration_seconds: data.durationSeconds ?? null,
+        is_published: true,
       })
       .select("*")
       .single();
