@@ -222,12 +222,54 @@ function PostContent({
     setAudioEl(audioRef.current);
   }, [p.id, p.type, mediaUrl]);
 
+  // Autoplay muted on load (browser policy); unmute button enables sound.
+  useEffect(() => {
+    const el = p.type === "video" ? videoRef.current : audioRef.current;
+    if (!el || !mediaUrl) return;
+
+    let cancelled = false;
+    const start = () => {
+      if (cancelled) return;
+      el.muted = true;
+      el.volume = volume;
+      void el.play().then(() => setPlaying(true)).catch(() => setPlaying(false));
+    };
+
+    if (el.readyState >= 2) start();
+    else el.addEventListener("canplay", start, { once: true });
+
+    return () => {
+      cancelled = true;
+      el.removeEventListener("canplay", start);
+      el.pause();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [p.id, p.type, mediaUrl]);
+
   useEffect(() => {
     const el = p.type === "video" ? videoRef.current : audioRef.current;
     if (!el) return;
     el.muted = muted;
     el.volume = volume;
+    if (!muted) {
+      void el.play().then(() => setPlaying(true)).catch(() => setPlaying(false));
+    }
   }, [muted, volume, p.type]);
+
+  const unmuteAndPlay = async (vol = 1) => {
+    const el = p.type === "video" ? videoRef.current : audioRef.current;
+    if (!el) return;
+    setMuted(false);
+    setVolume(vol);
+    el.muted = false;
+    el.volume = vol;
+    try {
+      await el.play();
+      setPlaying(true);
+    } catch {
+      setPlaying(false);
+    }
+  };
 
   const regenerate = async () => {
     if (regensLeft <= 0) return;
@@ -358,7 +400,8 @@ function PostContent({
           aria-label={muted ? "Unmute" : "Mute"}
           onClick={(e) => {
             e.stopPropagation();
-            setMuted((m) => !m);
+            if (muted) void unmuteAndPlay(1);
+            else setMuted(true);
           }}
           className="absolute left-4 top-4 z-30 grid h-9 w-9 place-items-center rounded-full bg-black/40 text-white backdrop-blur"
         >
@@ -377,9 +420,12 @@ function PostContent({
             value={muted ? 0 : volume}
             onChange={(e) => {
               const v = Number.parseFloat(e.target.value);
-              setVolume(v);
-              if (v > 0 && muted) setMuted(false);
-              if (v === 0) setMuted(true);
+              if (v === 0) {
+                setMuted(true);
+                setVolume(0);
+                return;
+              }
+              void unmuteAndPlay(v);
             }}
             aria-label="Volume"
             className="h-20 w-1 cursor-pointer appearance-none rounded-full bg-white/20 accent-[var(--gold)] [writing-mode:vertical-lr] [direction:rtl] [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-gold"

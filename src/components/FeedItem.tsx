@@ -55,7 +55,10 @@ export function FeedItem({
   onComment,
   onSave,
   muted,
-  onToggleMute,
+  volume,
+  onUnmute,
+  onMute,
+  onVolumeChange,
   autoAdvance,
   onEnded,
 }: {
@@ -69,14 +72,16 @@ export function FeedItem({
   onComment: () => void;
   onSave: () => void;
   muted: boolean;
-  onToggleMute: () => void;
+  volume: number;
+  onUnmute: () => void;
+  onMute: () => void;
+  onVolumeChange: (v: number) => void;
   autoAdvance?: boolean;
   onEnded?: () => void;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
   const [playing, setPlaying] = useState(false);
-  const [volume, setVolume] = useState(1);
   const [tipOpen, setTipOpen] = useState(false);
   const [reportPostOpen, setReportPostOpen] = useState(false);
   const [reportUserOpen, setReportUserOpen] = useState(false);
@@ -113,15 +118,20 @@ export function FeedItem({
       el.pause();
       setPlaying(false);
     }
+    // Only restart when switching posts — not when toggling mute.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active, post.type, muted]);
+  }, [active, post.id, post.type]);
 
-  // Apply volume changes live without restarting playback.
+  // Unmute / volume — keep playback position (TikTok-style).
   useEffect(() => {
     const el = post.type === "video" ? videoRef.current : audioRef.current;
-    if (!el) return;
+    if (!el || !active) return;
+    el.muted = muted;
     el.volume = volume;
-  }, [volume, post.type]);
+    if (!muted) {
+      void el.play().then(() => setPlaying(true)).catch(() => setPlaying(false));
+    }
+  }, [muted, volume, active, post.type]);
 
   // Fire "play" once after 2s of active listening, then "complete"/"loop" as they happen.
   useEffect(() => {
@@ -271,10 +281,14 @@ export function FeedItem({
       {/* mute */}
       <button
         aria-label={muted ? "Unmute" : "Mute"}
-        onClick={(e) => { e.stopPropagation(); onToggleMute(); }}
+        onClick={(e) => {
+          e.stopPropagation();
+          if (muted) onUnmute();
+          else onMute();
+        }}
         className="absolute left-4 top-4 z-20 grid h-9 w-9 place-items-center rounded-full bg-black/40 text-white backdrop-blur"
       >
-        {muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+        {muted || volume === 0 ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
       </button>
 
       {/* volume slider — sits just under the mute button */}
@@ -290,8 +304,7 @@ export function FeedItem({
           value={muted ? 0 : volume}
           onChange={(e) => {
             const v = parseFloat(e.target.value);
-            setVolume(v);
-            if (v > 0 && muted) onToggleMute();
+            onVolumeChange(v);
           }}
           aria-label="Volume"
           className="h-20 w-1 cursor-pointer appearance-none rounded-full bg-white/20 accent-[var(--gold)] [writing-mode:vertical-lr] [direction:rtl] [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-gold"

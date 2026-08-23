@@ -28,8 +28,25 @@ function FeedPage() {
   const navigate = useNavigate();
   const [active, setActive] = useState(0);
   const [muted, setMuted] = useState(true);
+  const [volume, setVolume] = useState(1);
   const [commentsFor, setCommentsFor] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  const unmuteFeed = () => {
+    setMuted(false);
+    setVolume(1);
+  };
+
+  const toggleMute = () => {
+    if (muted) unmuteFeed();
+    else setMuted(true);
+  };
+
+  const setFeedVolume = (v: number) => {
+    setVolume(v);
+    if (v > 0) setMuted(false);
+    else setMuted(true);
+  };
 
   // Generate a random seed once per session to maintain consistent "random" order during paging
   const [sessionSeed] = useState(() => Math.floor(Math.random() * 1000));
@@ -176,7 +193,10 @@ function FeedPage() {
               onComment={() => setCommentsFor(post.id)}
               onSave={() => {}}
               muted={muted}
-              onToggleMute={() => setMuted((m) => !m)}
+              volume={volume}
+              onUnmute={unmuteFeed}
+              onMute={() => setMuted(true)}
+              onVolumeChange={setFeedVolume}
             />
           </div>
         ))}
