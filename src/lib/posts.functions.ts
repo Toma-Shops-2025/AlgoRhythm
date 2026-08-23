@@ -72,6 +72,7 @@ export const createPost = createServerFn({ method: "POST" })
     const { data: post, error } = await supabase
       .from("posts")
       .insert({
+        id: crypto.randomUUID(),
         creator_id: userId,
         type: data.type,
         media_url: data.mediaUrl,
