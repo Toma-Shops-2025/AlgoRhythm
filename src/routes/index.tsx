@@ -4,25 +4,15 @@ import { useInfiniteQuery } from "@tanstack/react-query";
 import { AppShell } from "@/components/AppShell";
 import { FeedItem, type FeedPost } from "@/components/FeedItem";
 import { CommentsSheet } from "@/components/CommentsSheet";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
-import { isPlayablePost } from "@/lib/storage";
 import { useNavigate } from "@tanstack/react-router";
 import { getBlockedCreatorIds } from "@/lib/blocked-creators";
+import { fetchShuffledFeedPage } from "@/lib/shuffled-feed";
+import { newSessionSeed } from "@/lib/shuffle";
 
 export const Route = createFileRoute("/")({
   component: FeedPage,
 });
-
-/** Fisher–Yates shuffle helper */
-function shuffle<T>(input: T[]): T[] {
-  const arr = [...input];
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
-  }
-  return arr;
-}
 
 function FeedPage() {
   const { user } = useAuth();
@@ -49,77 +39,27 @@ function FeedPage() {
     else setMuted(true);
   };
 
-  // Generate a random seed once per session to maintain consistent "random" order during paging
-  const [sessionSeed] = useState(() => Math.floor(Math.random() * 1000));
+  // New seed every app open → full-library shuffle starts on a different post.
+  const [sessionSeed] = useState(() => newSessionSeed());
 
   const { data, isLoading, error, fetchNextPage, hasNextPage, isFetchingNextPage, refetch } =
     useInfiniteQuery({
       queryKey: ["feed", "shuffled", sessionSeed],
       initialPageParam: 0,
-      // Prevent infinite "Initializing Feed..." for Play reviewers / flaky networks.
       staleTime: 30_000,
       retry: 1,
       queryFn: async ({ pageParam = 0 }) => {
-        const pageSize = 12;
         const withTimeout = <T,>(promise: PromiseLike<T>, ms = 12_000): Promise<T> =>
           Promise.race([
             Promise.resolve(promise),
             new Promise<T>((_, reject) =>
-              window.setTimeout(() => reject(new Error("Feed timed out — check connection and try again")), ms)
+              window.setTimeout(
+                () => reject(new Error("Feed timed out — check connection and try again")),
+                ms,
+              ),
             ),
           ]);
-
-        // 1. Get total count to calculate a random offset
-        const { count, error: countError } = await withTimeout(
-          supabase.from("posts").select("*", { count: "exact", head: true }).eq("is_published", true)
-        );
-        if (countError) throw countError;
-
-        const total = count || 0;
-        if (total === 0) return { items: [], nextPage: pageParam + 1, hasMore: false };
-
-        // Calculate a random starting point based on the seed
-        const seedOffset = sessionSeed % Math.max(1, Math.max(total - pageSize, 1));
-        const effectiveOffset = (seedOffset + pageParam * pageSize) % Math.max(1, total);
-
-        // 2. Fetch posts using the calculated offset
-        const { data: posts, error: postError } = await withTimeout(
-          supabase
-            .from("posts")
-            .select("*")
-            .eq("is_published", true)
-            .order("created_at", { ascending: false })
-            .range(effectiveOffset, effectiveOffset + pageSize - 1)
-        );
-
-        if (postError) throw postError;
-        if (!posts || posts.length === 0) return { items: [], nextPage: pageParam + 1, hasMore: false };
-
-        // 3. Fetch creators
-        const creatorIds = Array.from(new Set(posts.map((p) => p.creator_id)));
-        const { data: profiles } = await withTimeout(
-          supabase.from("profiles").select("id, handle, display_name, avatar_url").in("id", creatorIds)
-        );
-
-        const profileMap = new Map((profiles || []).map((p) => [p.id, p]));
-
-        // Prefer playable media, but never wipe the whole feed if filters are too strict.
-        const mapped = posts.map((p) => ({
-          ...p,
-          creator: profileMap.get(p.creator_id) || {
-            display_name: "Creator",
-            handle: "user",
-            avatar_url: null,
-          },
-        }));
-        const playable = mapped.filter(isPlayablePost);
-        const items = shuffle(playable.length > 0 ? playable : mapped);
-
-        return {
-          items,
-          nextPage: pageParam + 1,
-          hasMore: total > (pageParam + 1) * pageSize,
-        };
+        return withTimeout(fetchShuffledFeedPage(pageParam, sessionSeed));
       },
       getNextPageParam: (lastPage) => (lastPage.hasMore ? lastPage.nextPage : undefined),
     });
@@ -193,7 +133,7 @@ function FeedPage() {
         )}
 
         {basePosts.map((post, idx) => (
-          <div key={`${post.id}-${idx}`} data-feed-item data-idx={idx}>
+          <div key={post.id} data-feed-item data-idx={idx}>
             <FeedItem
               post={post}
               active={idx === active}
@@ -216,6 +156,13 @@ function FeedPage() {
             <div className="h-20 w-full flex items-center justify-center bg-black">
                 <Loader2 className="animate-spin text-primary h-6 w-6" />
             </div>
+        )}
+        {!isLoading && basePosts.length > 0 && !hasNextPage && (
+          <div className="grid h-[40vh] place-items-center bg-black px-8 text-center">
+            <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-white/35">
+              You’ve seen every post — reopen the app for a fresh shuffle
+            </p>
+          </div>
         )}
       </div>
       <CommentsSheet postId={commentsFor} open={!!commentsFor} onClose={() => setCommentsFor(null)} />
