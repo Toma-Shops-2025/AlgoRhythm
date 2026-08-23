@@ -132,6 +132,24 @@ export function FeedItem({
     }
   }, [muted, volume, active, post.type]);
 
+  // Stop audio when user leaves the tab / minimizes the window.
+  useEffect(() => {
+    const onVisibility = () => {
+      const el = post.type === "video" ? videoRef.current : audioRef.current;
+      if (!el) return;
+      if (document.hidden) {
+        el.pause();
+        setPlaying(false);
+      } else if (active) {
+        el.muted = muted;
+        el.volume = volume;
+        void el.play().then(() => setPlaying(true)).catch(() => setPlaying(false));
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
+  }, [active, muted, volume, post.type]);
+
   // Fire "play" once after 2s of active listening, then "complete"/"loop" as they happen.
   useEffect(() => {
     const el = post.type === "video" ? videoRef.current : audioRef.current;
@@ -337,60 +355,74 @@ export function FeedItem({
             <Gift className="h-7 w-7 text-gold" />
           </ActionButton>
         )}
+        {/* Always visible — was gated on login + not-own-post, easy to miss */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              type="button"
+              aria-label="More options"
+              className="flex flex-col items-center gap-1"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <span className="grid h-12 w-12 place-items-center rounded-full bg-black/35 backdrop-blur">
+                <MoreVertical className="h-6 w-6" />
+              </span>
+              <span className="text-[10px] font-medium text-white/90">More</span>
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent
+            align="end"
+            side="left"
+            className="z-[80] min-w-[11rem]"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {user && post.creator && user.id === post.creator.id ? (
+              <DropdownMenuItem disabled>This is your post</DropdownMenuItem>
+            ) : (
+              <>
+                <DropdownMenuItem
+                  onSelect={() => {
+                    if (!user) return navigate({ to: "/login" });
+                    setReportPostOpen(true);
+                  }}
+                >
+                  Report post
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  onSelect={() => {
+                    if (!user) return navigate({ to: "/login" });
+                    if (!post.creator) return;
+                    navigate({
+                      to: "/report/user/$userId",
+                      params: { userId: post.creator.id },
+                      search: { handle: post.creator.handle },
+                    });
+                  }}
+                >
+                  Report creator
+                </DropdownMenuItem>
+                <DropdownMenuItem
+                  className="text-rose-400 focus:text-rose-400"
+                  onSelect={() => {
+                    if (!user) return navigate({ to: "/login" });
+                    if (!post.creator) return;
+                    navigate({
+                      to: "/block/$userId",
+                      params: { userId: post.creator.id },
+                      search: { handle: post.creator.handle },
+                    });
+                  }}
+                >
+                  Block creator
+                </DropdownMenuItem>
+              </>
+            )}
+          </DropdownMenuContent>
+        </DropdownMenu>
+
         <ActionButton onClick={openShare} ariaLabel="Share post">
           <Share2 className="h-7 w-7" />
         </ActionButton>
-        {user && post.creator && user.id !== post.creator.id && (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                type="button"
-                aria-label="More options"
-                className="flex flex-col items-center gap-1"
-              >
-                <span className="grid h-12 w-12 place-items-center rounded-full bg-black/35 backdrop-blur">
-                  <MoreVertical className="h-6 w-6" />
-                </span>
-              </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent
-              align="end"
-              side="left"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <DropdownMenuItem onSelect={() => setReportPostOpen(true)}>
-                Report post
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onSelect={() => {
-                  if (!user) return navigate({ to: "/login" });
-                  if (!post.creator) return;
-                  navigate({
-                    to: "/report/user/$userId",
-                    params: { userId: post.creator.id },
-                    search: { handle: post.creator.handle },
-                  });
-                }}
-              >
-                Report creator
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                className="text-rose-400 focus:text-rose-400"
-                onSelect={() => {
-                  if (!user) return navigate({ to: "/login" });
-                  if (!post.creator) return;
-                  navigate({
-                    to: "/block/$userId",
-                    params: { userId: post.creator.id },
-                    search: { handle: post.creator.handle },
-                  });
-                }}
-              >
-                Block creator
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        )}
       </div>
 
       {/* bottom meta */}
