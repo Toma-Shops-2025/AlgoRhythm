@@ -7,9 +7,33 @@ import { createPost } from "@/lib/posts.functions";
 import { generateCoverImage, generatePostMetadata, generateMusicVideoScenes } from "@/lib/ai.functions";
 import { audioToVideo, audioToLyricVideo, b64ToFile, loadImageFromB64, type LyricLine } from "@/lib/audioToVideo";
 import { AppShell } from "@/components/AppShell";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { Music, Film, Image as ImageIcon, Loader2, Sparkles, Video as VideoIcon, Type } from "lucide-react";
 import { toastErrorMessage } from "@/lib/utils";
+
+const SUPABASE_FREE_GLOBAL_BYTES = 50 * 1024 * 1024;
+
+function formatMb(bytes: number) {
+  return (bytes / (1024 * 1024)).toFixed(bytes >= 100 * 1024 * 1024 ? 0 : 1);
+}
+
+function isStorageSizeError(message: string) {
+  const msg = message.toLowerCase();
+  return (
+    msg.includes("maximum allowed size") ||
+    msg.includes("exceeds storage size") ||
+    msg.includes("caps uploads at 50mb") ||
+    msg.includes("storage size limit")
+  );
+}
 
 export const Route = createFileRoute("/upload")({
   validateSearch: (search: Record<string, unknown>) => {
@@ -58,8 +82,22 @@ function UploadPage() {
   const [videoMode, setVideoMode] = useState<"visualizer" | "lyric">("visualizer");
   const [ownsRights, setOwnsRights] = useState(false);
   const [aiDisclosed, setAiDisclosed] = useState(false);
+  const [sizeHelpOpen, setSizeHelpOpen] = useState(false);
+  const [sizeHelpMb, setSizeHelpMb] = useState<string | null>(null);
 
   const coverPreview = useMemo(() => (cover ? URL.createObjectURL(cover) : null), [cover]);
+
+  const openSizeHelp = (fileBytes?: number) => {
+    setSizeHelpMb(fileBytes != null ? formatMb(fileBytes) : null);
+    setSizeHelpOpen(true);
+  };
+
+  const onMediaPicked = (file: File | null) => {
+    setMedia(file);
+    if (file && file.type.startsWith("video") && file.size > SUPABASE_FREE_GLOBAL_BYTES) {
+      openSizeHelp(file.size);
+    }
+  };
 
   if (!loading && !user) {
     navigate({ to: "/login" });
@@ -71,16 +109,11 @@ function UploadPage() {
     : null;
 
   const MAX_MEDIA_BYTES = 500 * 1024 * 1024;
-  const SUPABASE_FREE_GLOBAL_BYTES = 50 * 1024 * 1024;
-
-  const storageLimitHelp =
-    "Supabase has two limits: (1) bucket limit — run supabase/migrations/20260823120000_storage_media_size_limit.sql in project tmpdjywsnwzivetqludd, and (2) global limit — Supabase Dashboard → Storage → Settings → Global file size limit. Free plans cannot go above 50MB globally; Pro is required for larger uploads.";
 
   const uploadTo = async (bucket: string, file: File) => {
     if (file.size > MAX_MEDIA_BYTES) {
-      throw new Error(
-        `File is ${(file.size / (1024 * 1024)).toFixed(0)}MB — max is 500MB. Try a shorter track or post audio-only.`,
-      );
+      openSizeHelp(file.size);
+      throw new Error(`File is ${formatMb(file.size)}MB — too large to upload.`);
     }
     const ext = file.name.split(".").pop() ?? "bin";
     const path = `${user!.id}/${crypto.randomUUID()}.${ext}`;
@@ -90,16 +123,9 @@ function UploadPage() {
     });
     if (error) {
       const msg = error.message.toLowerCase();
-      if (msg.includes("maximum allowed size") || msg.includes("exceeded")) {
-        const sizeMb = (file.size / (1024 * 1024)).toFixed(1);
-        if (file.size > SUPABASE_FREE_GLOBAL_BYTES) {
-          throw new Error(
-            `Upload is ${sizeMb}MB but Supabase Free caps uploads at 50MB globally (bucket SQL alone won't fix that). Post audio-only, use a shorter track, or upgrade to Pro and raise Storage → Settings → Global file size limit. ${storageLimitHelp}`,
-          );
-        }
-        throw new Error(
-          `Upload exceeds storage size limit (${sizeMb}MB). ${storageLimitHelp}`,
-        );
+      if (msg.includes("maximum allowed size") || msg.includes("exceeded") || msg.includes("payload too large")) {
+        openSizeHelp(file.size);
+        throw new Error(`Upload is ${formatMb(file.size)}MB — compress under 50MB and try again.`);
       }
       if (msg.includes("bucket not found")) {
         throw new Error(
@@ -211,10 +237,9 @@ function UploadPage() {
       }
 
       setBusyLabel("Uploading…");
-      if (mediaFile.size > MAX_MEDIA_BYTES) {
-        throw new Error(
-          `Rendered video is ${(mediaFile.size / (1024 * 1024)).toFixed(0)}MB — max is 500MB. Try a shorter track or disable video conversion.`,
-        );
+      if (mediaFile.size > MAX_MEDIA_BYTES || mediaFile.size > SUPABASE_FREE_GLOBAL_BYTES) {
+        openSizeHelp(mediaFile.size);
+        throw new Error(`File is ${formatMb(mediaFile.size)}MB — compress under 50MB and try again.`);
       }
       const mediaUrl = await uploadTo("media", mediaFile);
       const coverUrl = derivedCover ? await uploadTo("covers", derivedCover) : null;
@@ -249,7 +274,12 @@ function UploadPage() {
         search: { new: 1, regen: regenCount || undefined },
       });
     } catch (e) {
-      toast.error(toastErrorMessage(e, "Could not publish"));
+      const message = toastErrorMessage(e, "Could not publish");
+      if (isStorageSizeError(message)) {
+        setSizeHelpOpen(true);
+      } else {
+        toast.error(message);
+      }
     } finally {
       setBusy(false);
       setBusyLabel("");
@@ -258,6 +288,39 @@ function UploadPage() {
 
   return (
     <AppShell>
+      <Dialog open={sizeHelpOpen} onOpenChange={setSizeHelpOpen}>
+        <DialogContent className="max-w-sm border-gold/30 bg-background">
+          <DialogHeader>
+            <DialogTitle className="text-gradient-gold">Video too large to upload</DialogTitle>
+            <DialogDescription className="text-left text-muted-foreground">
+              {sizeHelpMb
+                ? `Your file is about ${sizeHelpMb}MB. AlgoRhythm currently accepts music videos under 50MB.`
+                : "AlgoRhythm currently accepts music videos under 50MB."}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 text-sm text-muted-foreground">
+            <p>
+              Compress the MP4 (or export a smaller version), then choose the new file and publish again.
+              Your caption and tags stay filled in — you only need to swap the video.
+            </p>
+            <ul className="list-disc space-y-1.5 pl-4 text-xs leading-relaxed">
+              <li>Aim for under 50MB (720p / lower bitrate works great for feed posts)</li>
+              <li>Free tools like HandBrake or CapCut export work well</li>
+              <li>Or post the audio track first, then add video later</li>
+            </ul>
+          </div>
+          <DialogFooter className="sm:justify-start">
+            <button
+              type="button"
+              onClick={() => setSizeHelpOpen(false)}
+              className="w-full rounded-md bg-gradient-gold px-4 py-2.5 text-sm font-medium text-primary-foreground"
+            >
+              Got it — I'll compress and retry
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <div className="mx-auto max-w-md px-5 pt-6">
         <h1 className="text-2xl tracking-tight text-gradient-gold">New post</h1>
         <p className="mt-1 text-xs uppercase tracking-[0.2em] text-muted-foreground">Audio or video. AI-made.</p>
@@ -281,8 +344,12 @@ function UploadPage() {
             icon={type === "video" ? Film : Music}
             accept="*/*"
             file={media}
-            onChange={setMedia}
+            onChange={onMediaPicked}
           />
+          <p className="text-[11px] leading-relaxed text-muted-foreground">
+            Music videos work best under <span className="text-foreground">50MB</span>. Larger files usually fail —
+            compress the MP4, then upload again.
+          </p>
           {(type === "audio" || type === "video") && (
             <div className="space-y-2">
               <FilePick
