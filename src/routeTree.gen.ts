@@ -30,7 +30,10 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as UHandleRouteImport } from './routes/u.$handle'
 import { Route as PIdRouteImport } from './routes/p.$id'
 import { Route as CheckoutReturnRouteImport } from './routes/checkout.return'
+import { Route as ReportUserUserIdRouteImport } from './routes/report.user.$userId'
+import { Route as BlockUserIdRouteImport } from './routes/block.$userId'
 import { Route as ApiTranscribeLyricsRouteImport } from './routes/api/transcribe-lyrics'
+import { Route as ApiAdminRestoreMediaRouteImport } from './routes/api/admin/restore-media'
 import { Route as LovableEmailQueueProcessRouteImport } from './routes/lovable/email/queue/process'
 import { Route as ApiPublicPaymentsWebhookRouteImport } from './routes/api/public/payments/webhook'
 
@@ -139,9 +142,24 @@ const CheckoutReturnRoute = CheckoutReturnRouteImport.update({
   path: '/checkout/return',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ReportUserUserIdRoute = ReportUserUserIdRouteImport.update({
+  id: '/report/user/$userId',
+  path: '/report/user/$userId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BlockUserIdRoute = BlockUserIdRouteImport.update({
+  id: '/block/$userId',
+  path: '/block/$userId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiTranscribeLyricsRoute = ApiTranscribeLyricsRouteImport.update({
   id: '/api/transcribe-lyrics',
   path: '/api/transcribe-lyrics',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAdminRestoreMediaRoute = ApiAdminRestoreMediaRouteImport.update({
+  id: '/api/admin/restore-media',
+  path: '/api/admin/restore-media',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LovableEmailQueueProcessRoute =
@@ -161,6 +179,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/account-deletion': typeof AccountDeletionRoute
   '/admin': typeof AdminRoute
+  '/block/$userId': typeof BlockUserIdRoute
   '/contact': typeof ContactRoute
   '/discover': typeof DiscoverRoute
   '/dmca': typeof DmcaRoute
@@ -171,6 +190,7 @@ export interface FileRoutesByFullPath {
   '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
   '/refunds': typeof RefundsRoute
+  '/report/user/$userId': typeof ReportUserUserIdRoute
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
@@ -180,6 +200,7 @@ export interface FileRoutesByFullPath {
   '/checkout/return': typeof CheckoutReturnRoute
   '/p/$id': typeof PIdRoute
   '/u/$handle': typeof UHandleRoute
+  '/api/admin/restore-media': typeof ApiAdminRestoreMediaRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
 }
@@ -187,6 +208,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/account-deletion': typeof AccountDeletionRoute
   '/admin': typeof AdminRoute
+  '/block/$userId': typeof BlockUserIdRoute
   '/contact': typeof ContactRoute
   '/discover': typeof DiscoverRoute
   '/dmca': typeof DmcaRoute
@@ -197,6 +219,7 @@ export interface FileRoutesByTo {
   '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
   '/refunds': typeof RefundsRoute
+  '/report/user/$userId': typeof ReportUserUserIdRoute
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
@@ -206,6 +229,7 @@ export interface FileRoutesByTo {
   '/checkout/return': typeof CheckoutReturnRoute
   '/p/$id': typeof PIdRoute
   '/u/$handle': typeof UHandleRoute
+  '/api/admin/restore-media': typeof ApiAdminRestoreMediaRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
 }
@@ -214,6 +238,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/account-deletion': typeof AccountDeletionRoute
   '/admin': typeof AdminRoute
+  '/block/$userId': typeof BlockUserIdRoute
   '/contact': typeof ContactRoute
   '/discover': typeof DiscoverRoute
   '/dmca': typeof DmcaRoute
@@ -224,6 +249,7 @@ export interface FileRoutesById {
   '/pricing': typeof PricingRoute
   '/privacy': typeof PrivacyRoute
   '/refunds': typeof RefundsRoute
+  '/report/user/$userId': typeof ReportUserUserIdRoute
   '/signup': typeof SignupRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
@@ -233,6 +259,7 @@ export interface FileRoutesById {
   '/checkout/return': typeof CheckoutReturnRoute
   '/p/$id': typeof PIdRoute
   '/u/$handle': typeof UHandleRoute
+  '/api/admin/restore-media': typeof ApiAdminRestoreMediaRoute
   '/api/public/payments/webhook': typeof ApiPublicPaymentsWebhookRoute
   '/lovable/email/queue/process': typeof LovableEmailQueueProcessRoute
 }
@@ -242,6 +269,7 @@ export interface FileRouteTypes {
     | '/'
     | '/account-deletion'
     | '/admin'
+    | '/block/$userId'
     | '/contact'
     | '/discover'
     | '/dmca'
@@ -252,6 +280,7 @@ export interface FileRouteTypes {
     | '/pricing'
     | '/privacy'
     | '/refunds'
+    | '/report/user/$userId'
     | '/signup'
     | '/sitemap.xml'
     | '/terms'
@@ -261,6 +290,7 @@ export interface FileRouteTypes {
     | '/checkout/return'
     | '/p/$id'
     | '/u/$handle'
+    | '/api/admin/restore-media'
     | '/api/public/payments/webhook'
     | '/lovable/email/queue/process'
   fileRoutesByTo: FileRoutesByTo
@@ -268,6 +298,7 @@ export interface FileRouteTypes {
     | '/'
     | '/account-deletion'
     | '/admin'
+    | '/block/$userId'
     | '/contact'
     | '/discover'
     | '/dmca'
@@ -278,6 +309,7 @@ export interface FileRouteTypes {
     | '/pricing'
     | '/privacy'
     | '/refunds'
+    | '/report/user/$userId'
     | '/signup'
     | '/sitemap.xml'
     | '/terms'
@@ -287,6 +319,7 @@ export interface FileRouteTypes {
     | '/checkout/return'
     | '/p/$id'
     | '/u/$handle'
+    | '/api/admin/restore-media'
     | '/api/public/payments/webhook'
     | '/lovable/email/queue/process'
   id:
@@ -294,6 +327,7 @@ export interface FileRouteTypes {
     | '/'
     | '/account-deletion'
     | '/admin'
+    | '/block/$userId'
     | '/contact'
     | '/discover'
     | '/dmca'
@@ -304,6 +338,7 @@ export interface FileRouteTypes {
     | '/pricing'
     | '/privacy'
     | '/refunds'
+    | '/report/user/$userId'
     | '/signup'
     | '/sitemap.xml'
     | '/terms'
@@ -313,6 +348,7 @@ export interface FileRouteTypes {
     | '/checkout/return'
     | '/p/$id'
     | '/u/$handle'
+    | '/api/admin/restore-media'
     | '/api/public/payments/webhook'
     | '/lovable/email/queue/process'
   fileRoutesById: FileRoutesById
@@ -321,6 +357,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AccountDeletionRoute: typeof AccountDeletionRoute
   AdminRoute: typeof AdminRoute
+  BlockUserIdRoute: typeof BlockUserIdRoute
   ContactRoute: typeof ContactRoute
   DiscoverRoute: typeof DiscoverRoute
   DmcaRoute: typeof DmcaRoute
@@ -331,6 +368,7 @@ export interface RootRouteChildren {
   PricingRoute: typeof PricingRoute
   PrivacyRoute: typeof PrivacyRoute
   RefundsRoute: typeof RefundsRoute
+  ReportUserUserIdRoute: typeof ReportUserUserIdRoute
   SignupRoute: typeof SignupRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   TermsRoute: typeof TermsRoute
@@ -340,6 +378,7 @@ export interface RootRouteChildren {
   CheckoutReturnRoute: typeof CheckoutReturnRoute
   PIdRoute: typeof PIdRoute
   UHandleRoute: typeof UHandleRoute
+  ApiAdminRestoreMediaRoute: typeof ApiAdminRestoreMediaRoute
   ApiPublicPaymentsWebhookRoute: typeof ApiPublicPaymentsWebhookRoute
   LovableEmailQueueProcessRoute: typeof LovableEmailQueueProcessRoute
 }
@@ -493,11 +532,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof CheckoutReturnRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/report/user/$userId': {
+      id: '/report/user/$userId'
+      path: '/report/user/$userId'
+      fullPath: '/report/user/$userId'
+      preLoaderRoute: typeof ReportUserUserIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/block/$userId': {
+      id: '/block/$userId'
+      path: '/block/$userId'
+      fullPath: '/block/$userId'
+      preLoaderRoute: typeof BlockUserIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/transcribe-lyrics': {
       id: '/api/transcribe-lyrics'
       path: '/api/transcribe-lyrics'
       fullPath: '/api/transcribe-lyrics'
       preLoaderRoute: typeof ApiTranscribeLyricsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/admin/restore-media': {
+      id: '/api/admin/restore-media'
+      path: '/api/admin/restore-media'
+      fullPath: '/api/admin/restore-media'
+      preLoaderRoute: typeof ApiAdminRestoreMediaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/lovable/email/queue/process': {
@@ -521,6 +581,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AccountDeletionRoute: AccountDeletionRoute,
   AdminRoute: AdminRoute,
+  BlockUserIdRoute: BlockUserIdRoute,
   ContactRoute: ContactRoute,
   DiscoverRoute: DiscoverRoute,
   DmcaRoute: DmcaRoute,
@@ -531,6 +592,7 @@ const rootRouteChildren: RootRouteChildren = {
   PricingRoute: PricingRoute,
   PrivacyRoute: PrivacyRoute,
   RefundsRoute: RefundsRoute,
+  ReportUserUserIdRoute: ReportUserUserIdRoute,
   SignupRoute: SignupRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   TermsRoute: TermsRoute,
@@ -540,6 +602,7 @@ const rootRouteChildren: RootRouteChildren = {
   CheckoutReturnRoute: CheckoutReturnRoute,
   PIdRoute: PIdRoute,
   UHandleRoute: UHandleRoute,
+  ApiAdminRestoreMediaRoute: ApiAdminRestoreMediaRoute,
   ApiPublicPaymentsWebhookRoute: ApiPublicPaymentsWebhookRoute,
   LovableEmailQueueProcessRoute: LovableEmailQueueProcessRoute,
 }

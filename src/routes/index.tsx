@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { isPlayablePost } from "@/lib/storage";
 import { useNavigate } from "@tanstack/react-router";
+import { getBlockedCreatorIds } from "@/lib/blocked-creators";
 
 export const Route = createFileRoute("/")({
   component: FeedPage,
@@ -123,9 +124,20 @@ function FeedPage() {
       getNextPageParam: (lastPage) => (lastPage.hasMore ? lastPage.nextPage : undefined),
     });
 
+  const [blockedTick, setBlockedTick] = useState(0);
+  useEffect(() => {
+    setBlockedTick((t) => t + 1);
+    const onFocus = () => setBlockedTick((t) => t + 1);
+    window.addEventListener("focus", onFocus);
+    return () => window.removeEventListener("focus", onFocus);
+  }, []);
+
   const basePosts = useMemo(() => {
-    return (data?.pages.flatMap((page) => page.items) ?? []) as unknown as FeedPost[];
-  }, [data]);
+    const blocked = new Set(getBlockedCreatorIds());
+    return ((data?.pages.flatMap((page) => page.items) ?? []) as unknown as FeedPost[]).filter(
+      (p) => !blocked.has(p.creator_id),
+    );
+  }, [data, blockedTick]);
 
   useEffect(() => {
     const root = containerRef.current;

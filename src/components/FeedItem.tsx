@@ -84,7 +84,6 @@ export function FeedItem({
   const [playing, setPlaying] = useState(false);
   const [tipOpen, setTipOpen] = useState(false);
   const [reportPostOpen, setReportPostOpen] = useState(false);
-  const [reportUserOpen, setReportUserOpen] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -359,18 +358,33 @@ export function FeedItem({
               side="left"
               onClick={(e) => e.stopPropagation()}
             >
-              <DropdownMenuItem onSelect={() => setReportUserOpen(true)}>
-                Report creator
-              </DropdownMenuItem>
               <DropdownMenuItem onSelect={() => setReportPostOpen(true)}>
                 Report post
               </DropdownMenuItem>
               <DropdownMenuItem
+                onSelect={() => {
+                  if (!user) return navigate({ to: "/login" });
+                  if (!post.creator) return;
+                  navigate({
+                    to: "/report/user/$userId",
+                    params: { userId: post.creator.id },
+                    search: { handle: post.creator.handle },
+                  });
+                }}
+              >
+                Report creator
+              </DropdownMenuItem>
+              <DropdownMenuItem
                 className="text-rose-400 focus:text-rose-400"
-                onSelect={() =>
-                  post.creator &&
-                  navigate({ to: "/u/$handle", params: { handle: post.creator.handle } })
-                }
+                onSelect={() => {
+                  if (!user) return navigate({ to: "/login" });
+                  if (!post.creator) return;
+                  navigate({
+                    to: "/block/$userId",
+                    params: { userId: post.creator.id },
+                    search: { handle: post.creator.handle },
+                  });
+                }}
               >
                 Block creator
               </DropdownMenuItem>
@@ -429,14 +443,6 @@ export function FeedItem({
         targetType="post"
         targetId={post.id}
       />
-      {post.creator && (
-        <ReportDialog
-          open={reportUserOpen}
-          onOpenChange={setReportUserOpen}
-          targetType="user"
-          targetId={post.creator.id}
-        />
-      )}
       <Sheet open={shareOpen} onOpenChange={setShareOpen}>
         <SheetContent side="bottom" className="rounded-t-2xl border-border bg-card">
           <SheetHeader>
