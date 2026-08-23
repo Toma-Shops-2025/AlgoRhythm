@@ -22,6 +22,7 @@ import { useNavigate, useRouter } from "@tanstack/react-router";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { resolveStorageUrl } from "@/lib/storage";
+import { recordPlayback } from "@/lib/playback.functions";
 
 export type FeedPost = {
   id: string;

@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { queryOptions, useSuspenseQuery } from "@tanstack/react-query";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { AppShell } from "@/components/AppShell";
 import { AudioVisualizer } from "@/components/AudioVisualizer";
 import { CommentsSheet } from "@/components/CommentsSheet";
@@ -9,7 +9,20 @@ import { deletePost } from "@/lib/posts.functions";
 import { toggleLike } from "@/lib/social.functions";
 import { useAuth } from "@/lib/auth";
 import { useNavigate } from "@tanstack/react-router";
-import { Heart, MessageCircle, Share2, ArrowRight, Pencil, RefreshCw, CheckCircle2, ChevronLeft, ChevronRight } from "lucide-react";
+import {
+  Heart,
+  MessageCircle,
+  Share2,
+  ArrowRight,
+  Pencil,
+  RefreshCw,
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  Play,
+  Volume2,
+  VolumeX,
+} from "lucide-react";
 import { toast } from "sonner";
 import { SITE_URL, SITE_NAME, buildPostTitle, buildPostDescription, absUrl } from "@/lib/seo";
 import { resolveStorageUrl } from "@/lib/storage";
@@ -145,20 +158,50 @@ export const Route = createFileRoute("/p/$id")({
 
 function PostPage() {
   const { id } = Route.useParams();
+  const { data } = useSuspenseQuery(postQueryOptions(id));
+  if (!data.post) {
+    return (
+      <AppShell>
+        <div className="grid h-dvh place-items-center text-sm text-muted-foreground">Post not found.</div>
+      </AppShell>
+    );
+  }
+  return <PostContent post={data.post} creator={data.creator} />;
+}
+
+function PostContent({
+  post: p,
+  creator,
+}: {
+  post: {
+    id: string;
+    creator_id: string;
+    type: string;
+    media_url: string;
+    cover_url: string | null;
+    title: string;
+    description: string | null;
+    tags: string[] | null;
+    like_count: number;
+    comment_count: number;
+  };
+  creator: { id: string; handle: string; display_name: string | null; avatar_url: string | null } | null;
+}) {
   const search = Route.useSearch();
   const like = toggleLike;
   const removePost = deletePost;
   const siblingsFn = getCreatorPostIds;
   const { user } = useAuth();
   const navigate = useNavigate();
+  const videoRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
+  const [audioEl, setAudioEl] = useState<HTMLAudioElement | null>(null);
   const [playing, setPlaying] = useState(false);
+  const [muted, setMuted] = useState(true);
+  const [volume, setVolume] = useState(1);
   const [showComments, setShowComments] = useState(false);
   const [regenBusy, setRegenBusy] = useState(false);
 
-  const { data } = useSuspenseQuery(postQueryOptions(id));
-  if (!data.post) return <AppShell><div className="grid h-dvh place-items-center text-sm text-muted-foreground">Post not found.</div></AppShell>;
-  const p = data.post;
   const mediaUrl = resolveStorageUrl(p.media_url);
   const coverUrl = resolveStorageUrl(p.cover_url);
   const isOwner = !!user && user.id === p.creator_id;
@@ -175,6 +218,56 @@ function PostPage() {
   const prevId = idx > 0 ? ids[idx - 1] : null;
   const nextId = idx >= 0 && idx < ids.length - 1 ? ids[idx + 1] : null;
 
+  useEffect(() => {
+    setAudioEl(audioRef.current);
+  }, [p.id, p.type, mediaUrl]);
+
+  useEffect(() => {
+    const el = p.type === "video" ? videoRef.current : audioRef.current;
+    if (!el || !mediaUrl) return;
+
+    let cancelled = false;
+    const tryPlay = async (forceMuted: boolean) => {
+      el.muted = forceMuted;
+      el.volume = volume;
+      try {
+        await el.play();
+        if (cancelled) return;
+        setPlaying(true);
+        if (forceMuted) setMuted(true);
+      } catch {
+        if (cancelled) return;
+        if (!forceMuted) {
+          await tryPlay(true);
+          return;
+        }
+        setPlaying(false);
+      }
+    };
+
+    const onCanPlay = () => {
+      void tryPlay(false);
+    };
+
+    if (el.readyState >= 2) void tryPlay(false);
+    else el.addEventListener("canplay", onCanPlay, { once: true });
+
+    return () => {
+      cancelled = true;
+      el.removeEventListener("canplay", onCanPlay);
+      el.pause();
+    };
+    // Autoplay once per media; mute/volume handled separately.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [p.id, p.type, mediaUrl]);
+
+  useEffect(() => {
+    const el = p.type === "video" ? videoRef.current : audioRef.current;
+    if (!el) return;
+    el.muted = muted;
+    el.volume = volume;
+  }, [muted, volume, p.type]);
+
   const regenerate = async () => {
     if (regensLeft <= 0) return;
     if (!confirm("Delete this post and start over?")) return;
@@ -189,33 +282,107 @@ function PostPage() {
   };
 
   const togglePlay = () => {
-    const el = audioRef.current;
+    const el = p.type === "video" ? videoRef.current : audioRef.current;
     if (!el) return;
-    if (el.paused) { el.play(); setPlaying(true); } else { el.pause(); setPlaying(false); }
+    if (el.paused) {
+      el.play()
+        .then(() => setPlaying(true))
+        .catch(() => setPlaying(false));
+    } else {
+      el.pause();
+      setPlaying(false);
+    }
   };
 
   const share = async () => {
     const url = window.location.href;
     if (navigator.share) await navigator.share({ title: p.title, text: p.description ?? undefined, url }).catch(() => {});
-    else { await navigator.clipboard.writeText(url); toast.success("Link copied"); }
+    else {
+      await navigator.clipboard.writeText(url);
+      toast.success("Link copied");
+    }
   };
 
   const doLike = async () => {
     if (!user) return navigate({ to: "/login" });
-    try { await like({ data: { postId: p.id } }); } catch (e) { toast.error((e as Error).message); }
+    try {
+      await like({ data: { postId: p.id } });
+    } catch (e) {
+      toast.error((e as Error).message);
+    }
   };
 
   return (
     <AppShell>
-      <div className="relative h-[70dvh] w-full overflow-hidden bg-black" onClick={p.type === "audio" ? togglePlay : undefined}>
+      <div className="relative h-[70dvh] w-full overflow-hidden bg-black">
         {p.type === "video" ? (
-          <video src={mediaUrl} poster={coverUrl || undefined} controls playsInline className="h-full w-full object-contain bg-black" />
+          <video
+            ref={videoRef}
+            src={mediaUrl || undefined}
+            poster={coverUrl || undefined}
+            playsInline
+            loop
+            muted={muted}
+            className="h-full w-full object-contain bg-black"
+            onClick={togglePlay}
+          />
         ) : (
           <>
-            <audio ref={audioRef} src={mediaUrl} />
-            <AudioVisualizer audio={audioRef.current} playing={playing} coverUrl={coverUrl || p.cover_url} />
+            <audio ref={audioRef} src={mediaUrl || undefined} loop />
+            <AudioVisualizer
+              audio={audioEl}
+              playing={playing}
+              coverUrl={coverUrl || p.cover_url}
+            />
+            <button
+              type="button"
+              onClick={togglePlay}
+              className="absolute inset-0 z-10"
+              aria-label={playing ? "Pause" : "Play"}
+            />
           </>
         )}
+
+        {!playing && (
+          <div className="pointer-events-none absolute inset-0 z-20 grid place-items-center">
+            <div className="grid h-16 w-16 place-items-center rounded-full bg-black/40 backdrop-blur">
+              <Play className="h-7 w-7 text-white" />
+            </div>
+          </div>
+        )}
+
+        <button
+          type="button"
+          aria-label={muted ? "Unmute" : "Mute"}
+          onClick={(e) => {
+            e.stopPropagation();
+            setMuted((m) => !m);
+          }}
+          className="absolute left-4 top-4 z-30 grid h-9 w-9 place-items-center rounded-full bg-black/40 text-white backdrop-blur"
+        >
+          {muted || volume === 0 ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+        </button>
+
+        <div
+          onClick={(e) => e.stopPropagation()}
+          className="absolute left-4 top-[3.75rem] z-30 flex h-24 w-9 flex-col items-center justify-center rounded-full bg-black/40 px-1 py-2 backdrop-blur"
+        >
+          <input
+            type="range"
+            min={0}
+            max={1}
+            step={0.01}
+            value={muted ? 0 : volume}
+            onChange={(e) => {
+              const v = Number.parseFloat(e.target.value);
+              setVolume(v);
+              if (v > 0 && muted) setMuted(false);
+              if (v === 0) setMuted(true);
+            }}
+            aria-label="Volume"
+            className="h-20 w-1 cursor-pointer appearance-none rounded-full bg-white/20 accent-[var(--gold)] [writing-mode:vertical-lr] [direction:rtl] [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-gold"
+          />
+        </div>
       </div>
 
       <div className="px-5 py-5">
@@ -264,16 +431,18 @@ function PostPage() {
           </div>
         )}
         <h1 className="text-xl tracking-tight">{p.title}</h1>
-        {data.creator && (
-          <Link to="/u/$handle" params={{ handle: data.creator.handle }} className="mt-1 inline-block text-sm text-gold">
-            @{data.creator.handle}
+        {creator && (
+          <Link to="/u/$handle" params={{ handle: creator.handle }} className="mt-1 inline-block text-sm text-gold">
+            @{creator.handle}
           </Link>
         )}
         {p.description && <p className="mt-3 text-sm text-foreground/90">{p.description}</p>}
         {p.tags?.length > 0 && (
           <div className="mt-3 flex flex-wrap gap-1.5">
             {p.tags.map((t: string) => (
-              <span key={t} className="rounded-full bg-card px-2 py-0.5 text-[11px] text-muted-foreground">#{t}</span>
+              <span key={t} className="rounded-full bg-card px-2 py-0.5 text-[11px] text-muted-foreground">
+                #{t}
+              </span>
             ))}
           </div>
         )}
