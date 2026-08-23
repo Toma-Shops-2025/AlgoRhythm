@@ -56,14 +56,7 @@ function SignupPage() {
       },
     });
 
-    if (!error && authData.user) {
-      // Sync email to profiles for admin visibility
-      await supabase.from('profiles').insert({
-          id: authData.user.id,
-          display_name: displayName,
-          email: email
-      }).catch(err => console.warn("Profile sync error", err));
-    }
+    // Profile row is created by the on_auth_user_created trigger; no manual insert needed.
     setLoading(false);
     if (error) return toast.error(error.message);
 
