@@ -71,6 +71,10 @@ function UploadPage() {
     : null;
 
   const MAX_MEDIA_BYTES = 500 * 1024 * 1024;
+  const SUPABASE_FREE_GLOBAL_BYTES = 50 * 1024 * 1024;
+
+  const storageLimitHelp =
+    "Supabase has two limits: (1) bucket limit — run supabase/migrations/20260823120000_storage_media_size_limit.sql in project tmpdjywsnwzivetqludd, and (2) global limit — Supabase Dashboard → Storage → Settings → Global file size limit. Free plans cannot go above 50MB globally; Pro is required for larger uploads.";
 
   const uploadTo = async (bucket: string, file: File) => {
     if (file.size > MAX_MEDIA_BYTES) {
@@ -87,8 +91,19 @@ function UploadPage() {
     if (error) {
       const msg = error.message.toLowerCase();
       if (msg.includes("maximum allowed size") || msg.includes("exceeded")) {
+        const sizeMb = (file.size / (1024 * 1024)).toFixed(1);
+        if (file.size > SUPABASE_FREE_GLOBAL_BYTES) {
+          throw new Error(
+            `Upload is ${sizeMb}MB but Supabase Free caps uploads at 50MB globally (bucket SQL alone won't fix that). Post audio-only, use a shorter track, or upgrade to Pro and raise Storage → Settings → Global file size limit. ${storageLimitHelp}`,
+          );
+        }
         throw new Error(
-          "Upload exceeds storage size limit. In Supabase SQL Editor, run supabase/migrations/20260823120000_storage_media_size_limit.sql, then try again.",
+          `Upload exceeds storage size limit (${sizeMb}MB). ${storageLimitHelp}`,
+        );
+      }
+      if (msg.includes("bucket not found")) {
+        throw new Error(
+          `Storage bucket "${bucket}" is missing. Run supabase/scripts/restore-playback.sql in project tmpdjywsnwzivetqludd, then try again.`,
         );
       }
       throw new Error(error.message);

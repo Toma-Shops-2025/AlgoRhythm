@@ -1,6 +1,14 @@
 // Client-side audio + cover image → webm video using canvas + MediaRecorder.
 // Renders a centered cover with a reactive frequency visualizer for the
 // duration of the audio track and returns a webm Blob.
+
+/** Target ~48MB so uploads stay under Supabase Free global cap (50MB). */
+function videoBitrateForDuration(durationSec: number, maxBytes = 48 * 1024 * 1024): number {
+  const audioBps = 128_000;
+  const totalBps = Math.floor((maxBytes * 8) / Math.max(durationSec, 1));
+  return Math.max(350_000, Math.min(2_500_000, totalBps - audioBps));
+}
+
 export async function audioToVideo(audioFile: File, coverFile: File): Promise<Blob> {
   if (typeof MediaRecorder === "undefined") {
     throw new Error("Your browser does not support video conversion. Try Chrome or Edge.");
@@ -40,7 +48,10 @@ export async function audioToVideo(audioFile: File, coverFile: File): Promise<Bl
 
   const mime = ["video/webm;codecs=vp9,opus", "video/webm;codecs=vp8,opus", "video/webm"]
     .find((m) => MediaRecorder.isTypeSupported(m)) ?? "video/webm";
-  const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 2_500_000 });
+  const rec = new MediaRecorder(stream, {
+    mimeType: mime,
+    videoBitsPerSecond: videoBitrateForDuration(duration),
+  });
   const chunks: Blob[] = [];
   rec.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
   const done = new Promise<Blob>((resolve) => { rec.onstop = () => resolve(new Blob(chunks, { type: "video/webm" })); });
@@ -155,7 +166,10 @@ export async function audioToMusicVideo(
 
   const mime = ["video/webm;codecs=vp9,opus", "video/webm;codecs=vp8,opus", "video/webm"]
     .find((m) => MediaRecorder.isTypeSupported(m)) ?? "video/webm";
-  const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 3_500_000 });
+  const rec = new MediaRecorder(stream, {
+    mimeType: mime,
+    videoBitsPerSecond: videoBitrateForDuration(duration),
+  });
   const chunks: Blob[] = [];
   rec.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
   const done = new Promise<Blob>((resolve) => { rec.onstop = () => resolve(new Blob(chunks, { type: "video/webm" })); });
@@ -310,7 +324,10 @@ export async function audioToLyricVideo(
 
   const mime = ["video/webm;codecs=vp9,opus", "video/webm;codecs=vp8,opus", "video/webm"]
     .find((m) => MediaRecorder.isTypeSupported(m)) ?? "video/webm";
-  const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 3_000_000 });
+  const rec = new MediaRecorder(stream, {
+    mimeType: mime,
+    videoBitsPerSecond: videoBitrateForDuration(duration),
+  });
   const chunks: Blob[] = [];
   rec.ondataavailable = (e) => { if (e.data.size) chunks.push(e.data); };
   const done = new Promise<Blob>((resolve) => { rec.onstop = () => resolve(new Blob(chunks, { type: "video/webm" })); });
