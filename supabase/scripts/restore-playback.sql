@@ -8,6 +8,9 @@ insert into storage.buckets (id, name, public) values
   ('covers', 'covers', true)
 on conflict (id) do nothing;
 
+-- Music videos / long audio exports (default bucket cap is 50MB)
+update storage.buckets set file_size_limit = 524288000 where id = 'media';
+
 -- 2) Storage policies (idempotent)
 drop policy if exists "media read" on storage.objects;
 create policy "media read" on storage.objects

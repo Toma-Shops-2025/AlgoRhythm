@@ -70,14 +70,29 @@ function UploadPage() {
     ? media.type.startsWith("video") ? "video" : media.type.startsWith("audio") ? "audio" : null
     : null;
 
+  const MAX_MEDIA_BYTES = 500 * 1024 * 1024;
+
   const uploadTo = async (bucket: string, file: File) => {
+    if (file.size > MAX_MEDIA_BYTES) {
+      throw new Error(
+        `File is ${(file.size / (1024 * 1024)).toFixed(0)}MB — max is 500MB. Try a shorter track or post audio-only.`,
+      );
+    }
     const ext = file.name.split(".").pop() ?? "bin";
     const path = `${user!.id}/${crypto.randomUUID()}.${ext}`;
     const { error } = await supabase.storage.from(bucket).upload(path, file, {
       contentType: file.type,
       upsert: false,
     });
-    if (error) throw new Error(error.message);
+    if (error) {
+      const msg = error.message.toLowerCase();
+      if (msg.includes("maximum allowed size") || msg.includes("exceeded")) {
+        throw new Error(
+          "Upload exceeds storage size limit. In Supabase SQL Editor, run supabase/migrations/20260823120000_storage_media_size_limit.sql, then try again.",
+        );
+      }
+      throw new Error(error.message);
+    }
     return supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl;
   };
 
@@ -181,6 +196,11 @@ function UploadPage() {
       }
 
       setBusyLabel("Uploading…");
+      if (mediaFile.size > MAX_MEDIA_BYTES) {
+        throw new Error(
+          `Rendered video is ${(mediaFile.size / (1024 * 1024)).toFixed(0)}MB — max is 500MB. Try a shorter track or disable video conversion.`,
+        );
+      }
       const mediaUrl = await uploadTo("media", mediaFile);
       const coverUrl = derivedCover ? await uploadTo("covers", derivedCover) : null;
       setBusyLabel("Publishing…");
