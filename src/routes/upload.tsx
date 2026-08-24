@@ -86,6 +86,7 @@ function UploadPage() {
   const [sizeHelpMb, setSizeHelpMb] = useState<string | null>(null);
 
   const coverPreview = useMemo(() => (cover ? URL.createObjectURL(cover) : null), [cover]);
+  const mediaPreview = useMemo(() => (media ? URL.createObjectURL(media) : null), [media]);
 
   const openSizeHelp = (fileBytes?: number) => {
     setSizeHelpMb(fileBytes != null ? formatMb(fileBytes) : null);
@@ -105,7 +106,15 @@ function UploadPage() {
   }
 
   const type: "audio" | "video" | null = media
-    ? media.type.startsWith("video") ? "video" : media.type.startsWith("audio") ? "audio" : null
+    ? media.type.startsWith("video")
+      ? "video"
+      : media.type.startsWith("audio")
+        ? "audio"
+        : /\.(mp4|webm|mov|m4v|mkv)$/i.test(media.name)
+          ? "video"
+          : /\.(mp3|wav|m4a|aac|ogg|flac)$/i.test(media.name)
+            ? "audio"
+            : null
     : null;
 
   const MAX_MEDIA_BYTES = 500 * 1024 * 1024;
@@ -353,6 +362,30 @@ function UploadPage() {
             file={media}
             onChange={onMediaPicked}
           />
+          {mediaPreview && type === "video" && (
+            <div className="overflow-hidden rounded-md border border-gold/20 bg-black">
+              <video
+                src={mediaPreview}
+                className="mx-auto max-h-56 w-full object-contain"
+                muted
+                playsInline
+                controls
+                preload="metadata"
+              />
+            </div>
+          )}
+          {mediaPreview && type === "audio" && (
+            <div className="rounded-md border border-gold/20 bg-card/40 p-3">
+              <div className="mb-2 flex items-center gap-2 text-xs text-muted-foreground">
+                <Music className="h-3.5 w-3.5 text-gold" />
+                <span className="truncate">{media?.name}</span>
+              </div>
+              <audio src={mediaPreview} controls preload="metadata" className="w-full" />
+              <p className="mt-2 text-[11px] text-muted-foreground">
+                Preview your track before adding captions.
+              </p>
+            </div>
+          )}
           <p className="text-[11px] leading-relaxed text-muted-foreground">
             Music videos work best under <span className="text-foreground">50MB</span>. Larger files usually fail —
             compress at{" "}
