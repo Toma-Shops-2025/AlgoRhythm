@@ -176,9 +176,9 @@ function useInfiniteQuery(options, queryClient) {
 }
 export {
   QueryClientProvider as Q,
-  useSuspenseQuery as a,
-  useQuery as b,
-  useInfiniteQuery as c,
+  useQuery as a,
+  useInfiniteQuery as b,
+  useSuspenseQuery as c,
   queryOptions as q,
   useQueryClient as u
 };

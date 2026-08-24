@@ -75,16 +75,21 @@ const createLucideIcon = (iconName, iconNode) => {
   Component.displayName = toPascalCase(iconName);
   return Component;
 };
-const __iconNode$P = [
+const __iconNode$Q = [
   ["path", { d: "m12 19-7-7 7-7", key: "1l729n" }],
   ["path", { d: "M19 12H5", key: "x3x0zl" }]
 ];
-const ArrowLeft = createLucideIcon("arrow-left", __iconNode$P);
-const __iconNode$O = [
+const ArrowLeft = createLucideIcon("arrow-left", __iconNode$Q);
+const __iconNode$P = [
   ["path", { d: "M5 12h14", key: "1ays0h" }],
   ["path", { d: "m12 5 7 7-7 7", key: "xquz4c" }]
 ];
-const ArrowRight = createLucideIcon("arrow-right", __iconNode$O);
+const ArrowRight = createLucideIcon("arrow-right", __iconNode$P);
+const __iconNode$O = [
+  ["circle", { cx: "12", cy: "12", r: "10", key: "1mglay" }],
+  ["path", { d: "M4.929 4.929 19.07 19.071", key: "196cmz" }]
+];
+const Ban = createLucideIcon("ban", __iconNode$O);
 const __iconNode$N = [
   [
     "path",
@@ -503,54 +508,55 @@ const X = createLucideIcon("x", __iconNode);
 export {
   ArrowLeft as A,
   Bookmark as B,
-  CircleCheck as C,
+  Crown as C,
   MessageSquare as D,
-  EllipsisVertical as E,
+  Ellipsis as E,
   Film as F,
   Grid3x3 as G,
-  Heart as H,
+  House as H,
   Image as I,
   DollarSign as J,
   Flag as K,
   LoaderCircle as L,
-  MessageCircle as M,
+  Music as M,
   ExternalLink as N,
   EyeOff as O,
   Pencil as P,
   Eye as Q,
-  RefreshCw as R,
-  Share2 as S,
-  Trash2 as T,
-  Users as U,
+  CircleCheck as R,
+  Sparkles as S,
+  Type as T,
+  User as U,
   Video as V,
-  House as W,
+  ArrowRight as W,
   X,
-  User as Y,
-  Circle as Z,
-  ArrowRight as a,
-  ChevronLeft as b,
-  ChevronRight as c,
-  Sparkles as d,
-  Music as e,
-  Type as f,
-  Crown as g,
-  Check as h,
-  Camera as i,
-  LogOut as j,
-  ShieldCheck as k,
-  Settings as l,
-  Plus as m,
-  Search as n,
-  Mail as o,
-  ShieldAlert as p,
-  FileText as q,
-  CreditCard as r,
-  TriangleAlert as s,
-  Play as t,
-  VolumeX as u,
-  Volume2 as v,
-  Gift as w,
-  Pin as x,
-  Send as y,
-  Ellipsis as z
+  RefreshCw as Y,
+  ChevronLeft as Z,
+  Ban as _,
+  Check as a,
+  Trash2 as b,
+  Camera as c,
+  LogOut as d,
+  ShieldCheck as e,
+  Settings as f,
+  Plus as g,
+  Search as h,
+  Play as i,
+  VolumeX as j,
+  Volume2 as k,
+  Heart as l,
+  MessageCircle as m,
+  Gift as n,
+  EllipsisVertical as o,
+  Share2 as p,
+  ChevronRight as q,
+  Circle as r,
+  Pin as s,
+  Send as t,
+  Mail as u,
+  ShieldAlert as v,
+  FileText as w,
+  CreditCard as x,
+  TriangleAlert as y,
+  Users as z
 };
