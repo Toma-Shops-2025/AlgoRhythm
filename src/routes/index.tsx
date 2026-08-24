@@ -133,7 +133,7 @@ function FeedPage() {
         )}
 
         {basePosts.map((post, idx) => (
-          <div key={post.id} data-feed-item data-idx={idx}>
+          <div key={`${post.id}-${idx}`} data-feed-item data-idx={idx}>
             <FeedItem
               post={post}
               active={idx === active}
@@ -156,13 +156,6 @@ function FeedPage() {
             <div className="h-20 w-full flex items-center justify-center bg-black">
                 <Loader2 className="animate-spin text-primary h-6 w-6" />
             </div>
-        )}
-        {!isLoading && basePosts.length > 0 && !hasNextPage && (
-          <div className="grid h-[40vh] place-items-center bg-black px-8 text-center">
-            <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-white/35">
-              You’ve seen every post — reopen the app for a fresh shuffle
-            </p>
-          </div>
         )}
       </div>
       <CommentsSheet postId={commentsFor} open={!!commentsFor} onClose={() => setCommentsFor(null)} />

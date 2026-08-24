@@ -27,6 +27,17 @@ const BATCH = 500;
 
 const libraryCache = new Map<number, FeedPostRow[]>();
 
+/** Slice a page from a library, wrapping to the start after the last item. */
+function wrapPage<T>(library: T[], page: number): { slice: T[]; hasMore: boolean } {
+  if (library.length === 0) return { slice: [], hasMore: false };
+  const from = page * FEED_PAGE_SIZE;
+  const slice: T[] = [];
+  for (let i = 0; i < FEED_PAGE_SIZE; i++) {
+    slice.push(library[(from + i) % library.length]);
+  }
+  return { slice, hasMore: true };
+}
+
 async function fetchAllPublishedPosts(): Promise<FeedPostRow[]> {
   const rows: FeedPostRow[] = [];
   for (let from = 0; ; from += BATCH) {
@@ -75,14 +86,13 @@ async function attachCreators(posts: FeedPostRow[]): Promise<FeedPostItem[]> {
   }));
 }
 
-/** Shuffle entire published library once per session seed; feed ends after last item. */
+/** Shuffle entire published library once per session seed; wrap so scroll never ends. */
 export async function fetchShuffledFeedPage(page: number, seed: number) {
   const library = await getShuffledLibrary(seed);
-  const from = page * FEED_PAGE_SIZE;
-  const slice = library.slice(from, from + FEED_PAGE_SIZE);
+  const { slice, hasMore } = wrapPage(library, page);
   return {
     items: await attachCreators(slice),
     nextPage: page + 1,
-    hasMore: from + FEED_PAGE_SIZE < library.length,
+    hasMore,
   };
 }
