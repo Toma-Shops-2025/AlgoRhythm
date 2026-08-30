@@ -1,6 +1,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { isPlayablePost } from "@/lib/storage";
-import { shuffleWithSeed } from "@/lib/shuffle";
+import { sliceShuffledPage } from "@/lib/shuffle";
 
 export type FeedPostRow = {
   id: string;
@@ -27,17 +27,6 @@ const BATCH = 500;
 
 const libraryCache = new Map<number, FeedPostRow[]>();
 
-/** Slice a page from a library, wrapping to the start after the last item. */
-function wrapPage<T>(library: T[], page: number): { slice: T[]; hasMore: boolean } {
-  if (library.length === 0) return { slice: [], hasMore: false };
-  const from = page * FEED_PAGE_SIZE;
-  const slice: T[] = [];
-  for (let i = 0; i < FEED_PAGE_SIZE; i++) {
-    slice.push(library[(from + i) % library.length]);
-  }
-  return { slice, hasMore: true };
-}
-
 async function fetchAllPublishedPosts(): Promise<FeedPostRow[]> {
   const rows: FeedPostRow[] = [];
   for (let from = 0; ; from += BATCH) {
@@ -55,16 +44,15 @@ async function fetchAllPublishedPosts(): Promise<FeedPostRow[]> {
   return rows;
 }
 
-async function getShuffledLibrary(seed: number): Promise<FeedPostRow[]> {
-  const hit = libraryCache.get(seed);
+async function getPublishedLibrary(): Promise<FeedPostRow[]> {
+  const hit = libraryCache.get(0);
   if (hit) return hit;
 
   const all = await fetchAllPublishedPosts();
   const playable = all.filter(isPlayablePost);
   const base = playable.length > 0 ? playable : all;
-  const shuffled = shuffleWithSeed(base, seed);
-  libraryCache.set(seed, shuffled);
-  return shuffled;
+  libraryCache.set(0, base);
+  return base;
 }
 
 async function attachCreators(posts: FeedPostRow[]): Promise<FeedPostItem[]> {
@@ -86,10 +74,10 @@ async function attachCreators(posts: FeedPostRow[]): Promise<FeedPostItem[]> {
   }));
 }
 
-/** Shuffle entire published library once per session seed; wrap so scroll never ends. */
+/** Shuffle per lap; each full pass through the library gets a new order. */
 export async function fetchShuffledFeedPage(page: number, seed: number) {
-  const library = await getShuffledLibrary(seed);
-  const { slice, hasMore } = wrapPage(library, page);
+  const library = await getPublishedLibrary();
+  const { slice, hasMore } = sliceShuffledPage(library, seed, page, FEED_PAGE_SIZE);
   return {
     items: await attachCreators(slice),
     nextPage: page + 1,
