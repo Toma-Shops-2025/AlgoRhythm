@@ -19,7 +19,8 @@ import { toast } from "sonner";
 import { Music, Film, Image as ImageIcon, Loader2, Sparkles, Video as VideoIcon, Type } from "lucide-react";
 import { toastErrorMessage } from "@/lib/utils";
 
-const SUPABASE_FREE_GLOBAL_BYTES = 50 * 1024 * 1024;
+const MAX_VIDEO_BYTES = 25 * 1024 * 1024;
+const MAX_AUDIO_BYTES = 50 * 1024 * 1024;
 
 function formatMb(bytes: number) {
   return (bytes / (1024 * 1024)).toFixed(bytes >= 100 * 1024 * 1024 ? 0 : 1);
@@ -30,7 +31,7 @@ function isStorageSizeError(message: string) {
   return (
     msg.includes("maximum allowed size") ||
     msg.includes("exceeds storage size") ||
-    msg.includes("caps uploads at 50mb") ||
+    msg.includes("caps uploads at 25mb") ||
     msg.includes("storage size limit")
   );
 }
@@ -95,9 +96,11 @@ function UploadPage() {
 
   const onMediaPicked = (file: File | null) => {
     setMedia(file);
-    if (file && file.type.startsWith("video") && file.size > SUPABASE_FREE_GLOBAL_BYTES) {
-      openSizeHelp(file.size);
-    }
+    if (!file) return;
+    const isVideo =
+      file.type.startsWith("video") || /\.(mp4|webm|mov|m4v|mkv)$/i.test(file.name);
+    const limit = isVideo ? MAX_VIDEO_BYTES : MAX_AUDIO_BYTES;
+    if (file.size > limit) openSizeHelp(file.size);
   };
 
   if (!loading && !user) {
@@ -119,10 +122,15 @@ function UploadPage() {
 
   const MAX_MEDIA_BYTES = 500 * 1024 * 1024;
 
-  const uploadTo = async (bucket: string, file: File) => {
-    if (file.size > MAX_MEDIA_BYTES) {
+  const mediaByteLimit = (file: File, postType: "audio" | "video") =>
+    postType === "video" ? MAX_VIDEO_BYTES : MAX_AUDIO_BYTES;
+
+  const uploadTo = async (bucket: string, file: File, postType: "audio" | "video" = "video") => {
+    const limit = mediaByteLimit(file, postType);
+    if (file.size > MAX_MEDIA_BYTES || file.size > limit) {
       openSizeHelp(file.size);
-      throw new Error(`File is ${formatMb(file.size)}MB — too large to upload.`);
+      const label = postType === "video" ? "25MB" : "50MB";
+      throw new Error(`File is ${formatMb(file.size)}MB — compress under ${label} and try again.`);
     }
     const ext = file.name.split(".").pop() ?? "bin";
     const path = `${user!.id}/${crypto.randomUUID()}.${ext}`;
@@ -134,7 +142,7 @@ function UploadPage() {
       const msg = error.message.toLowerCase();
       if (msg.includes("maximum allowed size") || msg.includes("exceeded") || msg.includes("payload too large")) {
         openSizeHelp(file.size);
-        throw new Error(`Upload is ${formatMb(file.size)}MB — compress under 50MB and try again.`);
+        throw new Error(`Upload is ${formatMb(file.size)}MB — compress under ${postType === "video" ? "25MB" : "50MB"} and try again.`);
       }
       if (msg.includes("bucket not found")) {
         throw new Error(
@@ -246,12 +254,14 @@ function UploadPage() {
       }
 
       setBusyLabel("Uploading…");
-      if (mediaFile.size > MAX_MEDIA_BYTES || mediaFile.size > SUPABASE_FREE_GLOBAL_BYTES) {
+      const limit = mediaByteLimit(mediaFile, postType);
+      if (mediaFile.size > MAX_MEDIA_BYTES || mediaFile.size > limit) {
         openSizeHelp(mediaFile.size);
-        throw new Error(`File is ${formatMb(mediaFile.size)}MB — compress under 50MB and try again.`);
+        const label = postType === "video" ? "25MB" : "50MB";
+        throw new Error(`File is ${formatMb(mediaFile.size)}MB — compress under ${label} and try again.`);
       }
-      const mediaUrl = await uploadTo("media", mediaFile);
-      const coverUrl = derivedCover ? await uploadTo("covers", derivedCover) : null;
+      const mediaUrl = await uploadTo("media", mediaFile, postType);
+      const coverUrl = derivedCover ? await uploadTo("covers", derivedCover, "video") : null;
       setBusyLabel("Publishing…");
       // hashtags + tags both feed into tags[] (lowercased, deduped, # stripped)
       const tagList = [
@@ -303,8 +313,8 @@ function UploadPage() {
             <DialogTitle className="text-gradient-gold">Video too large to upload</DialogTitle>
             <DialogDescription className="text-left text-muted-foreground">
               {sizeHelpMb
-                ? `Your file is about ${sizeHelpMb}MB. AlgoRhythm currently accepts music videos under 50MB.`
-                : "AlgoRhythm currently accepts music videos under 50MB."}
+                ? `Your file is about ${sizeHelpMb}MB. Music videos must be under 25MB (audio tracks up to 50MB).`
+                : "Music videos must be under 25MB. Audio tracks can be up to 50MB."}
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-3 text-sm text-muted-foreground">
@@ -321,7 +331,7 @@ function UploadPage() {
               Compress free at videocompress.ai →
             </a>
             <ul className="list-disc space-y-1.5 pl-4 text-xs leading-relaxed">
-              <li>Aim for under 50MB (720p / lower bitrate works great for feed posts)</li>
+              <li>Aim for under 25MB for video (720p / lower bitrate works great for feed posts)</li>
               <li>Or post the audio track first, then add video later</li>
             </ul>
           </div>
@@ -387,7 +397,7 @@ function UploadPage() {
             </div>
           )}
           <p className="text-[11px] leading-relaxed text-muted-foreground">
-            Music videos work best under <span className="text-foreground">50MB</span>. Larger files usually fail —
+            Music videos must be under <span className="text-foreground">25MB</span>. Larger files will fail —
             compress at{" "}
             <a
               href="https://videocompress.ai"

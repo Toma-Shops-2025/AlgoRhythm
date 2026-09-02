@@ -160,10 +160,10 @@ function PostGrid({ posts }: { posts: Array<{ id: string; title: string; cover_u
           <Link key={p.id} to="/p/$id" params={{ id: p.id }} className="relative aspect-[3/4] overflow-hidden rounded-md bg-card">
             {p.cover_url ? (
               <img src={resolveStorageUrl(p.cover_url)} alt={p.title} className="absolute inset-0 h-full w-full object-cover" loading="lazy" />
-            ) : isVideo && p.media_url ? (
-              <video src={`${resolveStorageUrl(p.media_url)}#t=0.1`} preload="metadata" muted playsInline className="absolute inset-0 h-full w-full object-cover" />
             ) : (
-              <div className="absolute inset-0 bg-gradient-to-br from-card to-background" />
+              <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-card to-background px-3 text-center">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-foreground/50">{isVideo ? "Video" : "Audio"}</span>
+              </div>
             )}
             {isVideo && (
               <div className="pointer-events-none absolute right-1.5 top-1.5 grid h-5 w-5 place-items-center rounded-full bg-black/60 backdrop-blur">

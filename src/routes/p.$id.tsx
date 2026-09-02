@@ -344,7 +344,7 @@ function PostContent({
             src={mediaUrl || undefined}
             poster={coverUrl || undefined}
             crossOrigin="anonymous"
-            preload="auto"
+            preload="metadata"
             playsInline
             loop
             muted={muted}
@@ -363,7 +363,7 @@ function PostContent({
               ref={audioRef}
               src={mediaUrl || undefined}
               crossOrigin="anonymous"
-              preload="auto"
+              preload="metadata"
               loop
               muted={muted}
               onPlay={() => setPlaying(true)}

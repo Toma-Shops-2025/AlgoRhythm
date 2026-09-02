@@ -236,16 +236,17 @@ export function FeedItem({
 
   const mediaUrl = resolveStorageUrl(post.media_url);
   const coverUrl = resolveStorageUrl(post.cover_url);
+  const loadMedia = active;
 
   return (
     <section className="relative h-dvh w-full snap-start overflow-hidden bg-black">
       {post.type === "video" ? (
         <video
           ref={videoRef}
-          src={mediaUrl}
+          src={loadMedia ? mediaUrl : undefined}
           poster={coverUrl || undefined}
           crossOrigin="anonymous"
-          preload="auto"
+          preload={loadMedia ? "auto" : "none"}
           playsInline
           muted={muted}
           loop={!autoAdvance}
@@ -262,9 +263,9 @@ export function FeedItem({
           )}
           <audio
             ref={audioRef}
-            src={mediaUrl}
+            src={loadMedia ? mediaUrl : undefined}
             crossOrigin="anonymous"
-            preload="auto"
+            preload={loadMedia ? "auto" : "none"}
             muted={muted}
             loop={!autoAdvance}
           />
