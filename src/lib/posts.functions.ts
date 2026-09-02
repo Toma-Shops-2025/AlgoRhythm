@@ -54,22 +54,25 @@ export const createPost = createServerFn({ method: "POST" })
         .parse(input),
   )
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
+    const { userId } = context;
     await requireVerifiedEmail(userId);
+    const { data: profile } = await supabaseAdmin
+      .from("profiles")
+      .select("handle, display_name")
+      .eq("id", userId)
+      .maybeSingle();
+    if (!profile) {
+      throw new Error("Profile not found. Sign out and sign back in, then try again.");
+    }
     // SEO safety net: ensure every post ships with a usable description for
     // social cards & search snippets even if the creator left the caption blank.
     let description = data.description?.trim() || null;
     if (!description) {
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("handle, display_name")
-        .eq("id", userId)
-        .maybeSingle();
-      const who = profile?.handle ? `@${profile.handle}` : "an independent creator";
+      const who = profile.handle ? `@${profile.handle}` : "an independent creator";
       const tagStr = (data.tags ?? []).slice(0, 5).map((t) => `#${t}`).join(" ");
       description = `AI-made ${data.type} "${data.title}" by ${who} on AlgoRhythm.${tagStr ? ` ${tagStr}` : ""}`.slice(0, 280);
     }
-    const { data: post, error } = await supabase
+    const { data: post, error } = await supabaseAdmin
       .from("posts")
       .insert({
         id: crypto.randomUUID(),
@@ -94,8 +97,8 @@ export const deletePost = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: { id: string }) => z.object({ id: z.string().uuid() }).parse(input))
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
-    const { error } = await supabase
+    const { userId } = context;
+    const { error } = await supabaseAdmin
       .from("posts")
       .delete()
       .eq("id", data.id)
@@ -119,9 +122,9 @@ export const updatePost = createServerFn({ method: "POST" })
         .parse(input),
   )
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
+    const { userId } = context;
     const { id, ...patch } = data;
-    const { data: row, error } = await supabase
+    const { data: row, error } = await supabaseAdmin
       .from("posts")
       .update(patch)
       .eq("id", id)
