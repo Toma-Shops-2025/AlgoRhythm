@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/lib/auth";
 import { useProSubscription } from "@/hooks/useSubscription";
-import { createPost } from "@/lib/posts.functions";
+import { createPost, createMediaUpload } from "@/lib/posts.functions";
 import { generateCoverImage, generatePostMetadata, generateMusicVideoScenes } from "@/lib/ai.functions";
 import { audioToVideo, audioToLyricVideo, b64ToFile, loadImageFromB64, type LyricLine } from "@/lib/audioToVideo";
 import { AppShell } from "@/components/AppShell";
@@ -132,26 +132,33 @@ function UploadPage() {
       const label = postType === "video" ? "25MB" : "50MB";
       throw new Error(`File is ${formatMb(file.size)}MB — compress under ${label} and try again.`);
     }
+    const kind = (bucket === "covers" || bucket === "avatars" ? bucket : "media") as
+      | "media"
+      | "covers"
+      | "avatars";
     const ext = file.name.split(".").pop() ?? "bin";
-    const path = `${user!.id}/${crypto.randomUUID()}.${ext}`;
-    const { error } = await supabase.storage.from(bucket).upload(path, file, {
-      contentType: file.type,
-      upsert: false,
+    const { uploadUrl, publicUrl } = await createMediaUpload({
+      data: {
+        kind,
+        contentType: file.type || "application/octet-stream",
+        ext,
+        byteSize: file.size,
+      },
     });
-    if (error) {
-      const msg = error.message.toLowerCase();
-      if (msg.includes("maximum allowed size") || msg.includes("exceeded") || msg.includes("payload too large")) {
+    const put = await fetch(uploadUrl, {
+      method: "PUT",
+      body: file,
+      headers: { "Content-Type": file.type || "application/octet-stream" },
+    });
+    if (!put.ok) {
+      const detail = await put.text().catch(() => "");
+      if (put.status === 413) {
         openSizeHelp(file.size);
         throw new Error(`Upload is ${formatMb(file.size)}MB — compress under ${postType === "video" ? "25MB" : "50MB"} and try again.`);
       }
-      if (msg.includes("bucket not found")) {
-        throw new Error(
-          `Storage bucket "${bucket}" is missing. Run supabase/scripts/restore-playback.sql in project tmpdjywsnwzivetqludd, then try again.`,
-        );
-      }
-      throw new Error(error.message);
+      throw new Error(detail || `R2 upload failed (${put.status})`);
     }
-    return supabase.storage.from(bucket).getPublicUrl(path).data.publicUrl;
+    return publicUrl;
   };
 
   const handleGenerateCover = async () => {

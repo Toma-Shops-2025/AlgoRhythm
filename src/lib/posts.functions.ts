@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { supabaseAdmin } from "@/integrations/supabase/client.server";
+import { createR2PresignedUpload, isAllowedMediaUrl, type R2MediaKind } from "@/lib/r2.server";
 
 // Bots love unverified accounts. Require a confirmed email before any user
 // can post or comment. We check the auth.users row via the service-role client
@@ -16,9 +17,29 @@ export async function requireVerifiedEmail(userId: string) {
   }
 }
 
-const STORAGE_BASE = `${process.env.SUPABASE_URL ?? ""}/storage/v1/object/public/`;
-const isBucketUrl = (bucket: string) => (u: string) =>
-  STORAGE_BASE !== "/storage/v1/object/public/" && u.startsWith(`${STORAGE_BASE}${bucket}/`);
+export const createMediaUpload = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator(
+    (input: { kind: R2MediaKind; contentType: string; ext: string; byteSize: number }) =>
+      z
+        .object({
+          kind: z.enum(["media", "covers", "avatars"]),
+          contentType: z.string().min(3).max(120),
+          ext: z.string().min(1).max(12),
+          byteSize: z.number().int().positive().max(100 * 1024 * 1024),
+        })
+        .parse(input),
+  )
+  .handler(async ({ data, context }) => {
+    const { userId } = context;
+    await requireVerifiedEmail(userId);
+    return createR2PresignedUpload({
+      userId,
+      kind: data.kind,
+      ext: data.ext,
+      contentType: data.contentType,
+    });
+  });
 
 export const createPost = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
@@ -39,11 +60,11 @@ export const createPost = createServerFn({ method: "POST" })
           mediaUrl: z
             .string()
             .url()
-            .refine(isBucketUrl("media"), "mediaUrl must point to the media bucket"),
+            .refine((u) => isAllowedMediaUrl(u, "media"), "mediaUrl must be an AlgoRhythm media URL"),
           coverUrl: z
             .string()
             .url()
-            .refine(isBucketUrl("covers"), "coverUrl must point to the covers bucket")
+            .refine((u) => isAllowedMediaUrl(u, "covers"), "coverUrl must be an AlgoRhythm cover URL")
             .nullish(),
           title: z.string().min(1).max(140),
           description: z.string().max(2000).optional(),

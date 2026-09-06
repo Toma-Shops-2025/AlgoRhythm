@@ -85,3 +85,80 @@ If you also need the service role key for **ViralSnap**:
 - Netlify (viralsnap.online): add `SUPABASE_SERVICE_ROLE_KEY` with that project’s key  
 
 Each Supabase project has its **own** service role key — do not mix them.
+
+---
+
+## 5) Cloudflare R2 (media hosting — kills Supabase egress bills)
+
+Posts/auth stay on **free Supabase**. Audio/video files go to **Cloudflare R2** (no egress fees).
+
+### Create bucket + API token (once)
+
+1. https://dash.cloudflare.com → **R2 Object Storage** → **Create bucket**  
+   - Name: `toma-media` (or anything; use the same name in env)
+2. Open the bucket → **Settings** → **Public access** → allow public bucket / connect **R2.dev** subdomain  
+   - Copy the public URL, e.g. `https://pub-xxxxxxxx.r2.dev`
+3. R2 → **Manage R2 API Tokens** → **Create API token**  
+   - Permission: Object Read & Write  
+   - Apply to `toma-media`  
+   - Copy **Access Key ID**, **Secret Access Key**, and note your **Account ID**
+
+### CORS (required for browser uploads)
+
+Bucket → **Settings** → **CORS policy** → paste:
+
+```json
+[
+  {
+    "AllowedOrigins": [
+      "https://myalgorhythm.online",
+      "https://viralsnap.online",
+      "http://localhost:5173",
+      "http://localhost:3000"
+    ],
+    "AllowedMethods": ["GET", "PUT", "HEAD"],
+    "AllowedHeaders": ["*"],
+    "ExposeHeaders": ["ETag"],
+    "MaxAgeSeconds": 3600
+  }
+]
+```
+
+### Netlify env vars (both sites)
+
+| Key | Value |
+|-----|--------|
+| `R2_ACCOUNT_ID` | Cloudflare account id |
+| `R2_ACCESS_KEY_ID` | from API token |
+| `R2_SECRET_ACCESS_KEY` | from API token |
+| `R2_BUCKET` | `toma-media` |
+| `R2_PUBLIC_URL` | `https://pub-xxxxxxxx.r2.dev` (no trailing slash) |
+
+Redeploy both Netlify sites after saving.
+
+### Migrate existing files off Supabase Storage
+
+```powershell
+# AlgoRhythm
+$env:APP="algorhythm"
+$env:SUPABASE_URL="https://tmpdjywsnwzivetqludd.supabase.co"
+$env:SUPABASE_SERVICE_ROLE_KEY="..."
+$env:R2_ACCOUNT_ID="..."
+$env:R2_ACCESS_KEY_ID="..."
+$env:R2_SECRET_ACCESS_KEY="..."
+$env:R2_BUCKET="toma-media"
+$env:R2_PUBLIC_URL="https://pub-xxxxxxxx.r2.dev"
+cd C:\Users\SexyMimi\Desktop\algorhythm
+node scripts/migrate-media-to-r2.mjs --dry-run
+node scripts/migrate-media-to-r2.mjs
+
+# ViralSnap — same R2_* vars, different Supabase
+$env:APP="viralsnap"
+$env:SUPABASE_URL="https://ylfrcrigmazlptxnlzqm.supabase.co"
+$env:SUPABASE_SERVICE_ROLE_KEY="(ViralSnap service role)"
+cd C:\Users\SexyMimi\Desktop\viralsnap
+node scripts/migrate-media-to-r2.mjs --dry-run
+node scripts/migrate-media-to-r2.mjs
+```
+
+After migration + a week of healthy feeds, you can empty the old Supabase Storage buckets so egress stops.
