@@ -26,7 +26,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { createPortalSession } from "@/lib/payments.functions";
-import { getMyLibrary } from "@/lib/saves.functions";
+import { getMyLibrary, toggleSave } from "@/lib/saves.functions";
+import { toggleLike, toggleFollow } from "@/lib/social.functions";
 import { getStripeEnvironment } from "@/lib/stripe";
 import { useProSubscription } from "@/hooks/useSubscription";
 import { supabase } from "@/integrations/supabase/client";
@@ -235,25 +236,48 @@ function MePage() {
             {feedItems.map((post: any, idx: number) => (
               <div key={`${post.id}-${idx}`} data-idx={idx} className="h-full w-full snap-start relative">
                 <FeedItem
-                  post={{ ...post, creator: tab === "posts" ? p : post.creator } as any}
+                  post={{ ...post, creator: tab === "posts" ? p : post.creator, comment_count: post.comment_count ?? 0 } as any}
                   active={idx === activeIdx}
                   liked={false}
                   following={false}
                   saved={tab === "library"}
-                  onLike={() => {}}
+                  onLike={async () => {
+                    if (!user) return navigate({ to: "/login" });
+                    try {
+                      const likeRes = await toggleLike({ data: { postId: post.id } });
+                      if (likeRes.liked) {
+                        await toggleSave({ data: { postId: post.id } });
+                        toast.success("Added to Library playlist");
+                      } else if (tab === "library") {
+                        await toggleSave({ data: { postId: post.id } });
+                        toast.success("Removed from Library");
+                      }
+                      qc.invalidateQueries({ queryKey: ["my-library"] });
+                    } catch (e) {
+                      toast.error(e instanceof Error ? e.message : "Could not update");
+                    }
+                  }}
                   onFollow={() => {}}
                   onComment={() => setCommentsFor(post.id)}
-                  onSave={() => {}}
+                  onSave={async () => {
+                    if (!user) return navigate({ to: "/login" });
+                    try {
+                      const res = await toggleSave({ data: { postId: post.id } });
+                      toast.success(res.saved ? "Saved to Library playlist" : "Removed from Library");
+                      qc.invalidateQueries({ queryKey: ["my-library"] });
+                    } catch (e) {
+                      toast.error(e instanceof Error ? e.message : "Could not update library");
+                    }
+                  }}
                   muted={muted}
                   onToggleMute={() => setMuted(!muted)}
                   autoAdvance={tab === "library"}
                   onEnded={() => {
-                    if (tab === "library" && idx < feedItems.length - 1) {
-                      const next = idx + 1;
-                      setActiveIdx(next);
-                      const target = feedContainerRef.current?.children[next] as HTMLElement;
-                      target?.scrollIntoView({ behavior: "smooth" });
-                    }
+                    if (tab !== "library" || feedItems.length === 0) return;
+                    const next = idx < feedItems.length - 1 ? idx + 1 : 0; // loop
+                    setActiveIdx(next);
+                    const target = feedContainerRef.current?.children[next] as HTMLElement;
+                    target?.scrollIntoView({ behavior: "smooth" });
                   }}
                 />
                 {tab === "posts" && (

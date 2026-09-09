@@ -9,7 +9,8 @@ import { PostGridItem } from "@/components/PostGridItem";
 import { FeedItem, type FeedPost } from "@/components/FeedItem";
 import { CommentsSheet } from "@/components/CommentsSheet";
 import { getProfileByHandle } from "@/lib/feed.functions";
-import { toggleFollow, getMyInteractions } from "@/lib/social.functions";
+import { toggleFollow, getMyInteractions, toggleLike } from "@/lib/social.functions";
+import { toggleSave } from "@/lib/saves.functions";
 import { toggleBlock } from "@/lib/safety.functions";
 import { updatePost, deletePost } from "@/lib/posts.functions";
 import { createCreatorSubCheckout } from "@/lib/payments.functions";
@@ -162,7 +163,38 @@ function ProfilePage() {
           <div className="h-full snap-y snap-mandatory overflow-y-scroll no-scrollbar">
             {data.posts.map((post, idx) => (
               <div key={post.id} className="h-full w-full snap-start relative">
-                <FeedItem post={{ ...post, creator: p } as any} active={idx === activeIdx} liked={false} following={isFollowing} saved={false} onLike={() => {}} onFollow={() => {}} onComment={() => setCommentsFor(post.id)} onSave={() => {}} muted={muted} onToggleMute={() => setMuted(!muted)} />
+                <FeedItem
+                  post={{ ...post, creator: p, comment_count: (post as any).comment_count ?? 0 } as any}
+                  active={idx === activeIdx}
+                  liked={false}
+                  following={isFollowing}
+                  saved={false}
+                  onLike={async () => {
+                    if (!user) return navigate({ to: "/login" });
+                    try {
+                      const likeRes = await toggleLike({ data: { postId: post.id } });
+                      if (likeRes.liked) {
+                        await toggleSave({ data: { postId: post.id } });
+                        toast.success("Added to Library playlist");
+                      }
+                    } catch (e) {
+                      toast.error(e instanceof Error ? e.message : "Could not update");
+                    }
+                  }}
+                  onFollow={() => void onFollow()}
+                  onComment={() => setCommentsFor(post.id)}
+                  onSave={async () => {
+                    if (!user) return navigate({ to: "/login" });
+                    try {
+                      const res = await toggleSave({ data: { postId: post.id } });
+                      toast.success(res.saved ? "Saved to Library playlist" : "Removed from Library");
+                    } catch (e) {
+                      toast.error(e instanceof Error ? e.message : "Could not update library");
+                    }
+                  }}
+                  muted={muted}
+                  onToggleMute={() => setMuted(!muted)}
+                />
                 {isOwner && (
                   <div className="absolute right-3 top-1/2 -translate-y-1/2 z-30 flex flex-col gap-3">
                     <button onClick={() => { setEditingPost(post); setEditTitle(post.title); setEditDesc((post as any).description || ""); setEditTags((post as any).tags?.map((t: string) => `#${t}`).join(" ") || ""); setEditPinned((post as any).pinned_comment || ""); }} className="h-10 w-10 grid place-items-center rounded-full bg-black/40 text-white backdrop-blur border border-white/20"><Pencil className="h-5 w-5" /></button>

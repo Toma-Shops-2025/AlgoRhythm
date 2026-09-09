@@ -334,11 +334,11 @@ export function FeedItem({
         <ActionButton onClick={onLike} count={post.like_count + (liked ? 1 : 0)} active={liked}>
           <Heart className={cn("h-7 w-7", liked && "fill-current text-rose-400")} />
         </ActionButton>
-        <ActionButton onClick={onComment} count={post.comment_count}>
+        <ActionButton onClick={onComment} count={post.comment_count ?? 0}>
           <MessageCircle className="h-7 w-7" />
         </ActionButton>
         <ActionButton
-          ariaLabel={saved ? "Remove from library" : "Save to library"}
+          ariaLabel={saved ? "Remove from Library playlist" : "Save to Library playlist"}
           onClick={onSave}
           count={(post.save_count ?? 0) + (saved ? 1 : 0)}
           active={saved}
@@ -571,6 +571,11 @@ function Avatar({ url, name }: { url: string | null; name: string }) {
 }
 
 function formatCount(n: number) {
+  const v = Number.isFinite(n) ? n : 0;
+  if (v >= 1_000_000) return `${(v / 1_000_000).toFixed(1)}M`;
+  if (v >= 1_000) return `${(v / 1_000).toFixed(1)}K`;
+  return String(Math.max(0, Math.floor(v)));
+}
   if (n < 1000) return String(n);
   if (n < 1_000_000) return (n / 1000).toFixed(1).replace(/\.0$/, "") + "K";
   return (n / 1_000_000).toFixed(1).replace(/\.0$/, "") + "M";

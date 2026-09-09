@@ -1,14 +1,16 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { AppShell } from "@/components/AppShell";
 import { FeedItem, type FeedPost } from "@/components/FeedItem";
 import { CommentsSheet } from "@/components/CommentsSheet";
 import { useAuth } from "@/lib/auth";
-import { useNavigate } from "@tanstack/react-router";
 import { getBlockedCreatorIds } from "@/lib/blocked-creators";
 import { fetchShuffledFeedPage } from "@/lib/shuffled-feed";
 import { newSessionSeed } from "@/lib/shuffle";
+import { toggleLike, toggleFollow, getMyInteractions } from "@/lib/social.functions";
+import { toggleSave } from "@/lib/saves.functions";
+import { toast } from "sonner";
 
 export const Route = createFileRoute("/")({
   component: FeedPage,
@@ -23,14 +25,14 @@ function FeedPage() {
   const [commentsFor, setCommentsFor] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  const [likedIds, setLikedIds] = useState<Set<string>>(() => new Set());
+  const [savedIds, setSavedIds] = useState<Set<string>>(() => new Set());
+  const [followingIds, setFollowingIds] = useState<Set<string>>(() => new Set());
+  const [likeDelta, setLikeDelta] = useState<Record<string, number>>({});
+
   const unmuteFeed = () => {
     setMuted(false);
     setVolume(1);
-  };
-
-  const toggleMute = () => {
-    if (muted) unmuteFeed();
-    else setMuted(true);
   };
 
   const setFeedVolume = (v: number) => {
@@ -79,6 +81,27 @@ function FeedPage() {
     );
   }, [data, blockedTick]);
 
+  // Load like / save / follow state for visible posts
+  useEffect(() => {
+    if (!user || basePosts.length === 0) return;
+    const postIds = basePosts.map((p) => p.id).slice(0, 50);
+    const creatorIds = [
+      ...new Set(basePosts.map((p) => p.creator_id).filter(Boolean)),
+    ].slice(0, 50);
+    let cancelled = false;
+    void getMyInteractions({ data: { postIds, creatorIds } })
+      .then((res) => {
+        if (cancelled) return;
+        setLikedIds(new Set(res.likedPostIds));
+        setSavedIds(new Set(res.savedPostIds));
+        setFollowingIds(new Set(res.followingIds));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [user, basePosts]);
+
   useEffect(() => {
     const root = containerRef.current;
     if (!root || basePosts.length === 0) return;
@@ -99,72 +122,231 @@ function FeedPage() {
   useEffect(() => {
     if (!hasNextPage || isFetchingNextPage) return;
     if (active >= basePosts.length - 2) fetchNextPage();
-  }, [active, basePosts.length, hasNextPage, isFetchingNextPage]);
+  }, [active, basePosts.length, hasNextPage, isFetchingNextPage, fetchNextPage]);
+
+  const requireAuth = () => {
+    if (user) return true;
+    toast.error("Sign in to do that");
+    navigate({ to: "/login" });
+    return false;
+  };
+
+  /** Heart: like + add to Library playlist (matches prior playlist behavior). */
+  const handleLike = async (post: FeedPost) => {
+    if (!requireAuth()) return;
+    const wasLiked = likedIds.has(post.id);
+    const wasSaved = savedIds.has(post.id);
+
+    setLikedIds((prev) => {
+      const next = new Set(prev);
+      if (wasLiked) next.delete(post.id);
+      else next.add(post.id);
+      return next;
+    });
+    setLikeDelta((d) => ({ ...d, [post.id]: (d[post.id] ?? 0) + (wasLiked ? -1 : 1) }));
+
+    // Keep Library playlist in sync with hearts
+    if (!wasLiked && !wasSaved) {
+      setSavedIds((prev) => new Set(prev).add(post.id));
+    } else if (wasLiked && wasSaved) {
+      setSavedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(post.id);
+        return next;
+      });
+    }
+
+    try {
+      const likeRes = await toggleLike({ data: { postId: post.id } });
+      if (likeRes.liked && !wasSaved) {
+        await toggleSave({ data: { postId: post.id } });
+        toast.success("Added to your Library playlist");
+      } else if (!likeRes.liked && wasSaved) {
+        await toggleSave({ data: { postId: post.id } });
+        toast.success("Removed from Library playlist");
+      }
+    } catch (e) {
+      // revert optimistic
+      setLikedIds((prev) => {
+        const next = new Set(prev);
+        if (wasLiked) next.add(post.id);
+        else next.delete(post.id);
+        return next;
+      });
+      setLikeDelta((d) => ({ ...d, [post.id]: (d[post.id] ?? 0) + (wasLiked ? 1 : -1) }));
+      setSavedIds((prev) => {
+        const next = new Set(prev);
+        if (wasSaved) next.add(post.id);
+        else next.delete(post.id);
+        return next;
+      });
+      toast.error(e instanceof Error ? e.message : "Could not update like");
+    }
+  };
+
+  /** Bookmark: save/unsave to Library without requiring a like. */
+  const handleSave = async (post: FeedPost) => {
+    if (!requireAuth()) return;
+    const wasSaved = savedIds.has(post.id);
+    setSavedIds((prev) => {
+      const next = new Set(prev);
+      if (wasSaved) next.delete(post.id);
+      else next.add(post.id);
+      return next;
+    });
+    try {
+      const res = await toggleSave({ data: { postId: post.id } });
+      toast.success(res.saved ? "Saved to Library playlist" : "Removed from Library");
+    } catch (e) {
+      setSavedIds((prev) => {
+        const next = new Set(prev);
+        if (wasSaved) next.add(post.id);
+        else next.delete(post.id);
+        return next;
+      });
+      toast.error(e instanceof Error ? e.message : "Could not update library");
+    }
+  };
+
+  const handleFollow = async (creatorId: string) => {
+    if (!requireAuth()) return;
+    if (user?.id === creatorId) return;
+    const wasFollowing = followingIds.has(creatorId);
+    setFollowingIds((prev) => {
+      const next = new Set(prev);
+      if (wasFollowing) next.delete(creatorId);
+      else next.add(creatorId);
+      return next;
+    });
+    try {
+      const res = await toggleFollow({ data: { targetUserId: creatorId } });
+      toast.success(res.following ? "Following" : "Unfollowed");
+    } catch (e) {
+      setFollowingIds((prev) => {
+        const next = new Set(prev);
+        if (wasFollowing) next.add(creatorId);
+        else next.delete(creatorId);
+        return next;
+      });
+      toast.error(e instanceof Error ? e.message : "Could not update follow");
+    }
+  };
 
   if (error) {
-      return (
-          <AppShell>
-              <div className="grid h-dvh place-items-center bg-black p-8 text-center">
-                  <div>
-                      <h2 className="text-xl text-red-500 font-bold mb-2 tracking-tighter uppercase italic">Sync Error</h2>
-                      <p className="text-white/40 text-[10px] font-bold uppercase tracking-widest">{(error as any).message}</p>
-                      <button onClick={() => refetch()} className="mt-8 bg-primary text-black px-10 py-3 rounded-full font-black uppercase text-xs shadow-glow">Retry Sync</button>
-                  </div>
-              </div>
-          </AppShell>
-      );
+    return (
+      <AppShell>
+        <div className="grid h-dvh place-items-center bg-black p-8 text-center">
+          <div>
+            <h2 className="text-xl text-red-500 font-bold mb-2 tracking-tighter uppercase italic">
+              Sync Error
+            </h2>
+            <p className="text-white/40 text-[10px] font-bold uppercase tracking-widest">
+              {(error as Error).message}
+            </p>
+            <button
+              onClick={() => refetch()}
+              className="mt-8 bg-primary text-black px-10 py-3 rounded-full font-black uppercase text-xs shadow-glow"
+            >
+              Retry Sync
+            </button>
+          </div>
+        </div>
+      </AppShell>
+    );
   }
 
   return (
     <AppShell>
-      <div ref={containerRef} className="h-dvh snap-y snap-mandatory overflow-y-scroll bg-black no-scrollbar" style={{ scrollbarWidth: "none" }}>
+      <div
+        ref={containerRef}
+        className="h-dvh snap-y snap-mandatory overflow-y-scroll bg-black no-scrollbar"
+        style={{ scrollbarWidth: "none" }}
+      >
         {isLoading && (
-          <div className="grid h-dvh place-items-center text-[10px] text-white/20 font-black uppercase tracking-[0.4em] italic animate-pulse">Initializing Feed...</div>
+          <div className="grid h-dvh place-items-center text-[10px] text-white/20 font-black uppercase tracking-[0.4em] italic animate-pulse">
+            Initializing Feed...
+          </div>
         )}
 
         {!isLoading && basePosts.length === 0 && (
           <div className="grid h-dvh place-items-center px-8 text-center">
             <div>
-              <h2 className="text-3xl text-gradient-gold font-black italic uppercase tracking-tighter">Feed Empty</h2>
-              <p className="mt-2 text-[10px] text-white/40 font-bold uppercase tracking-widest">Upload a track or video — your post goes live instantly on Supabase Storage.</p>
-              <a href="/upload" className="mt-8 inline-block rounded-full bg-gradient-gold px-8 py-3 text-sm font-black text-black uppercase shadow-glow">Create First Post</a>
+              <h2 className="text-3xl text-gradient-gold font-black italic uppercase tracking-tighter">
+                Feed Empty
+              </h2>
+              <p className="mt-2 text-[10px] text-white/40 font-bold uppercase tracking-widest">
+                Upload a track or video — your post goes live instantly.
+              </p>
+              <a
+                href="/upload"
+                className="mt-8 inline-block rounded-full bg-gradient-gold px-8 py-3 text-sm font-black text-black uppercase shadow-glow"
+              >
+                Create First Post
+              </a>
             </div>
           </div>
         )}
 
-        {basePosts.map((post, idx) => (
-          <div key={`${post.id}-${idx}`} data-feed-item data-idx={idx}>
-            <FeedItem
-              post={post}
-              active={idx === active}
-              liked={false}
-              following={false}
-              saved={false}
-              onLike={() => {}}
-              onFollow={() => {}}
-              onComment={() => setCommentsFor(post.id)}
-              onSave={() => {}}
-              muted={muted}
-              volume={volume}
-              onUnmute={unmuteFeed}
-              onMute={() => setMuted(true)}
-              onVolumeChange={setFeedVolume}
-            />
-          </div>
-        ))}
-        {isFetchingNextPage && (
-            <div className="h-20 w-full flex items-center justify-center bg-black">
-                <Loader2 className="animate-spin text-primary h-6 w-6" />
+        {basePosts.map((post, idx) => {
+          const liked = likedIds.has(post.id);
+          const saved = savedIds.has(post.id);
+          const following = post.creator_id ? followingIds.has(post.creator_id) : false;
+          const displayPost: FeedPost = {
+            ...post,
+            like_count: Math.max(0, (post.like_count ?? 0) + (likeDelta[post.id] ?? 0)),
+            comment_count: post.comment_count ?? 0,
+          };
+          return (
+            <div key={`${post.id}-${idx}`} data-feed-item data-idx={idx}>
+              <FeedItem
+                post={displayPost}
+                active={idx === active}
+                liked={liked}
+                following={following}
+                saved={saved}
+                onLike={() => void handleLike(post)}
+                onFollow={() => post.creator_id && void handleFollow(post.creator_id)}
+                onComment={() => setCommentsFor(post.id)}
+                onSave={() => void handleSave(post)}
+                muted={muted}
+                volume={volume}
+                onUnmute={unmuteFeed}
+                onMute={() => setMuted(true)}
+                onVolumeChange={setFeedVolume}
+              />
             </div>
+          );
+        })}
+        {isFetchingNextPage && (
+          <div className="h-20 w-full flex items-center justify-center bg-black">
+            <Loader2 className="animate-spin text-primary h-6 w-6" />
+          </div>
         )}
       </div>
-      <CommentsSheet postId={commentsFor} open={!!commentsFor} onClose={() => setCommentsFor(null)} />
+      <CommentsSheet
+        postId={commentsFor}
+        open={!!commentsFor}
+        onClose={() => setCommentsFor(null)}
+      />
     </AppShell>
   );
 }
 
-function Loader2(props: any) {
-    return (
-        <svg {...props} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
-    )
+function Loader2(props: React.SVGProps<SVGSVGElement>) {
+  return (
+    <svg
+      {...props}
+      xmlns="http://www.w3.org/2000/svg"
+      width="24"
+      height="24"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+    </svg>
+  );
 }
