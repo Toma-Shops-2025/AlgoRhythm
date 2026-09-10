@@ -576,7 +576,3 @@ function formatCount(n: number) {
   if (v >= 1_000) return `${(v / 1_000).toFixed(1)}K`;
   return String(Math.max(0, Math.floor(v)));
 }
-  if (n < 1000) return String(n);
-  if (n < 1_000_000) return (n / 1000).toFixed(1).replace(/\.0$/, "") + "K";
-  return (n / 1_000_000).toFixed(1).replace(/\.0$/, "") + "M";
-}
