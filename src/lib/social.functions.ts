@@ -7,22 +7,32 @@ import { requireVerifiedEmail } from "./posts.functions";
 export const toggleLike = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: { postId: string }) =>
-    z.object({ postId: z.string().uuid() }).parse(input),
+    z.object({ postId: z.string().min(1) }).parse(input),
   )
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
-    const { data: existing } = await supabase
+    const { userId } = context;
+    const { data: existing, error: readErr } = await supabaseAdmin
       .from("likes")
       .select("post_id")
       .eq("post_id", data.postId)
       .eq("user_id", userId)
       .maybeSingle();
+    if (readErr) throw new Error(`Could not read likes: ${readErr.message}`);
+
     if (existing) {
-      const { error } = await supabase.from("likes").delete().eq("post_id", data.postId).eq("user_id", userId);
+      const { error } = await supabaseAdmin
+        .from("likes")
+        .delete()
+        .eq("post_id", data.postId)
+        .eq("user_id", userId);
       if (error) throw new Error(error.message);
       return { liked: false };
     }
-    const { error } = await supabase.from("likes").insert({ post_id: data.postId, user_id: userId });
+
+    const { error } = await supabaseAdmin.from("likes").insert({
+      post_id: data.postId,
+      user_id: userId,
+    });
     if (error) throw new Error(error.message);
     return { liked: true };
   });
@@ -30,28 +40,33 @@ export const toggleLike = createServerFn({ method: "POST" })
 export const toggleFollow = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((input: { targetUserId: string }) =>
-    z.object({ targetUserId: z.string().uuid() }).parse(input),
+    z.object({ targetUserId: z.string().min(1) }).parse(input),
   )
   .handler(async ({ data, context }) => {
-    const { supabase, userId } = context;
+    const { userId } = context;
     if (userId === data.targetUserId) throw new Error("Cannot follow yourself");
-    const { data: existing } = await supabase
+    const { data: existing, error: readErr } = await supabaseAdmin
       .from("follows")
       .select("follower_id")
       .eq("follower_id", userId)
       .eq("following_id", data.targetUserId)
       .maybeSingle();
+    if (readErr) throw new Error(`Could not read follows: ${readErr.message}`);
+
     if (existing) {
-      await supabase
+      const { error } = await supabaseAdmin
         .from("follows")
         .delete()
         .eq("follower_id", userId)
         .eq("following_id", data.targetUserId);
+      if (error) throw new Error(error.message);
       return { following: false };
     }
-    await supabase
-      .from("follows")
-      .insert({ follower_id: userId, following_id: data.targetUserId });
+    const { error } = await supabaseAdmin.from("follows").insert({
+      follower_id: userId,
+      following_id: data.targetUserId,
+    });
+    if (error) throw new Error(error.message);
     return { following: true };
   });
 
