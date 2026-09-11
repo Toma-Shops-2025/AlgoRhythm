@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useInfiniteQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import { AppShell } from "@/components/AppShell";
 import { FeedItem, type FeedPost } from "@/components/FeedItem";
 import { CommentsSheet } from "@/components/CommentsSheet";
@@ -19,6 +19,7 @@ export const Route = createFileRoute("/")({
 function FeedPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const qc = useQueryClient();
   const [active, setActive] = useState(0);
   const [muted, setMuted] = useState(true);
   const [volume, setVolume] = useState(1);
@@ -160,9 +161,11 @@ function FeedPage() {
       const likeRes = await toggleLike({ data: { postId: post.id } });
       if (likeRes.liked && !wasSaved) {
         await toggleSave({ data: { postId: post.id } });
+        void qc.invalidateQueries({ queryKey: ["my-library"] });
         toast.success("Added to your Library playlist");
       } else if (!likeRes.liked && wasSaved) {
         await toggleSave({ data: { postId: post.id } });
+        void qc.invalidateQueries({ queryKey: ["my-library"] });
         toast.success("Removed from Library playlist");
       }
     } catch (e) {
@@ -196,6 +199,7 @@ function FeedPage() {
     });
     try {
       const res = await toggleSave({ data: { postId: post.id } });
+      void qc.invalidateQueries({ queryKey: ["my-library"] });
       toast.success(res.saved ? "Saved to Library playlist" : "Removed from Library");
     } catch (e) {
       setSavedIds((prev) => {

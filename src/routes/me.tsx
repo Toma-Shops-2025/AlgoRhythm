@@ -27,7 +27,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { createPortalSession } from "@/lib/payments.functions";
 import { getMyLibrary, toggleSave } from "@/lib/saves.functions";
-import { toggleLike, toggleFollow } from "@/lib/social.functions";
+import { toggleLike } from "@/lib/social.functions";
 import { getStripeEnvironment } from "@/lib/stripe";
 import { useProSubscription } from "@/hooks/useSubscription";
 import { supabase } from "@/integrations/supabase/client";
@@ -445,7 +445,7 @@ function MePage() {
             ))}
             {library && library.posts.length === 0 && (
               <p className="col-span-3 py-8 text-center text-sm text-muted-foreground">
-                Tap the bookmark on any post to save it here.
+                Heart or bookmark any post to build your Library playlist.
               </p>
             )}
           </div>

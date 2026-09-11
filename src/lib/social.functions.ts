@@ -18,10 +18,12 @@ export const toggleLike = createServerFn({ method: "POST" })
       .eq("user_id", userId)
       .maybeSingle();
     if (existing) {
-      await supabase.from("likes").delete().eq("post_id", data.postId).eq("user_id", userId);
+      const { error } = await supabase.from("likes").delete().eq("post_id", data.postId).eq("user_id", userId);
+      if (error) throw new Error(error.message);
       return { liked: false };
     }
-    await supabase.from("likes").insert({ post_id: data.postId, user_id: userId });
+    const { error } = await supabase.from("likes").insert({ post_id: data.postId, user_id: userId });
+    if (error) throw new Error(error.message);
     return { liked: true };
   });
 
