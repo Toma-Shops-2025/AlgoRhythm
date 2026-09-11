@@ -89,6 +89,7 @@ function MePage() {
   const [viewMode, setViewMode] = useState<"grid" | "feed">("grid");
   const [activeIdx, setActiveIdx] = useState(0);
   const [muted, setMuted] = useState(true);
+  const [volume, setVolume] = useState(1);
   const [commentsFor, setCommentsFor] = useState<string | null>(null);
   const feedContainerRef = useRef<HTMLDivElement>(null);
 
@@ -270,7 +271,13 @@ function MePage() {
                     }
                   }}
                   muted={muted}
-                  onToggleMute={() => setMuted(!muted)}
+                  volume={volume}
+                  onUnmute={() => { setMuted(false); setVolume(1); }}
+                  onMute={() => setMuted(true)}
+                  onVolumeChange={(v) => {
+                    setVolume(v);
+                    setMuted(v <= 0);
+                  }}
                   autoAdvance={tab === "library"}
                   onEnded={() => {
                     if (tab !== "library" || feedItems.length === 0) return;

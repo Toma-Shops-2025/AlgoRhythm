@@ -55,10 +55,11 @@ export function FeedItem({
   onComment,
   onSave,
   muted,
-  volume,
+  volume = 1,
   onUnmute,
   onMute,
   onVolumeChange,
+  onToggleMute,
   autoAdvance,
   onEnded,
 }: {
@@ -72,10 +73,12 @@ export function FeedItem({
   onComment: () => void;
   onSave: () => void;
   muted: boolean;
-  volume: number;
-  onUnmute: () => void;
-  onMute: () => void;
-  onVolumeChange: (v: number) => void;
+  volume?: number;
+  onUnmute?: () => void;
+  onMute?: () => void;
+  onVolumeChange?: (v: number) => void;
+  /** @deprecated use onUnmute/onMute */
+  onToggleMute?: () => void;
   autoAdvance?: boolean;
   onEnded?: () => void;
 }) {
@@ -93,13 +96,20 @@ export function FeedItem({
   const reportedCompleteRef = useRef(false);
   const loopsRef = useRef(0);
 
+  const safeVolume = Number.isFinite(volume) ? Math.min(1, Math.max(0, volume as number)) : 1;
+  const handleUnmute = onUnmute ?? (() => onToggleMute?.());
+  const handleMute = onMute ?? (() => onToggleMute?.());
+  const handleVolumeChange = onVolumeChange ?? (() => {});
+  const tags = Array.isArray(post.tags) ? post.tags : [];
+
+
   useEffect(() => {
     const el = post.type === "video" ? videoRef.current : audioRef.current;
     if (!el) return;
     if (active) {
       el.currentTime = 0;
       el.muted = muted;
-      el.volume = volume;
+      el.volume = safeVolume;
       reportedPlayRef.current = false;
       reportedCompleteRef.current = false;
       loopsRef.current = 0;
@@ -126,11 +136,11 @@ export function FeedItem({
     const el = post.type === "video" ? videoRef.current : audioRef.current;
     if (!el || !active) return;
     el.muted = muted;
-    el.volume = volume;
+    el.volume = safeVolume;
     if (!muted) {
       void el.play().then(() => setPlaying(true)).catch(() => setPlaying(false));
     }
-  }, [muted, volume, active, post.type]);
+  }, [muted, safeVolume, active, post.type]);
 
   // Stop audio when user leaves the tab / minimizes the window.
   useEffect(() => {
@@ -142,13 +152,13 @@ export function FeedItem({
         setPlaying(false);
       } else if (active) {
         el.muted = muted;
-        el.volume = volume;
+        el.volume = safeVolume;
         void el.play().then(() => setPlaying(true)).catch(() => setPlaying(false));
       }
     };
     document.addEventListener("visibilitychange", onVisibility);
     return () => document.removeEventListener("visibilitychange", onVisibility);
-  }, [active, muted, volume, post.type]);
+  }, [active, muted, safeVolume, post.type]);
 
   // Fire "play" once after 2s of active listening, then "complete"/"loop" as they happen.
   useEffect(() => {
@@ -208,7 +218,7 @@ export function FeedItem({
   const shareUrl =
     typeof window !== "undefined" ? `${window.location.origin}/p/${post.id}` : `/p/${post.id}`;
   const creatorHandle = post.creator?.handle ?? "creator";
-  const baseTags = (post.tags ?? []).slice(0, 3).map((t) => `#${t.replace(/\s+/g, "")}`).join(" ");
+  const baseTags = tags.slice(0, 3).map((t) => `#${t.replace(/\s+/g, "")}`).join(" ");
   const caption = `${post.title} — by @${creatorHandle} on AlgoRhythm 🎧\n${shareUrl}\n${baseTags} #AlgoRhythm #AIMusic`.trim();
 
   const openShare = async () => {
@@ -301,12 +311,12 @@ export function FeedItem({
         aria-label={muted ? "Unmute" : "Mute"}
         onClick={(e) => {
           e.stopPropagation();
-          if (muted) onUnmute();
-          else onMute();
+          if (muted) handleUnmute();
+          else handleMute();
         }}
         className="absolute left-4 top-4 z-20 grid h-9 w-9 place-items-center rounded-full bg-black/40 text-white backdrop-blur"
       >
-        {muted || volume === 0 ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
+        {muted || safeVolume === 0 ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
       </button>
 
       {/* volume slider — sits just under the mute button */}
@@ -319,10 +329,10 @@ export function FeedItem({
           min={0}
           max={1}
           step={0.01}
-          value={muted ? 0 : volume}
+          value={muted ? 0 : safeVolume}
           onChange={(e) => {
             const v = parseFloat(e.target.value);
-            onVolumeChange(v);
+            handleVolumeChange(v);
           }}
           aria-label="Volume"
           className="h-20 w-1 cursor-pointer appearance-none rounded-full bg-white/20 accent-[var(--gold)] [writing-mode:vertical-lr] [direction:rtl] [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-gold"
@@ -331,7 +341,7 @@ export function FeedItem({
 
       {/* right action rail */}
       <div className="pointer-events-auto absolute bottom-28 right-3 z-30 flex flex-col items-center gap-5 text-white">
-        <ActionButton onClick={onLike} count={post.like_count + (liked ? 1 : 0)} active={liked}>
+        <ActionButton onClick={onLike} count={(post.like_count ?? 0) + (liked ? 1 : 0)} active={liked}>
           <Heart className={cn("h-7 w-7", liked && "fill-current text-rose-400")} />
         </ActionButton>
         <ActionButton onClick={onComment} count={post.comment_count ?? 0}>
@@ -453,9 +463,9 @@ export function FeedItem({
         </div>
         <h2 className="mt-3 text-base font-medium">{post.title}</h2>
         {post.description && <p className="mt-1 line-clamp-2 text-sm text-white/80">{post.description}</p>}
-        {post.tags?.length > 0 && (
+        {tags.length > 0 && (
           <div className="mt-2 flex flex-wrap gap-1.5">
-            {post.tags.slice(0, 4).map((t) => (
+            {tags.slice(0, 4).map((t) => (
               <span key={t} className="rounded-full bg-white/10 px-2 py-0.5 text-[10px] uppercase tracking-wide text-white/80">#{t}</span>
             ))}
           </div>

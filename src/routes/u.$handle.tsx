@@ -93,6 +93,7 @@ function ProfilePage() {
   const [viewMode, setViewMode] = useState<"grid" | "feed">("grid");
   const [activeIdx, setActiveIdx] = useState(0);
   const [muted, setMuted] = useState(true);
+  const [volume, setVolume] = useState(1);
   const [commentsFor, setCommentsFor] = useState<string | null>(null);
 
   const [editingPost, setEditingPost] = useState<any | null>(null);
@@ -193,7 +194,13 @@ function ProfilePage() {
                     }
                   }}
                   muted={muted}
-                  onToggleMute={() => setMuted(!muted)}
+                  volume={volume}
+                  onUnmute={() => { setMuted(false); setVolume(1); }}
+                  onMute={() => setMuted(true)}
+                  onVolumeChange={(v) => {
+                    setVolume(v);
+                    setMuted(v <= 0);
+                  }}
                 />
                 {isOwner && (
                   <div className="absolute right-3 top-1/2 -translate-y-1/2 z-30 flex flex-col gap-3">
