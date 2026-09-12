@@ -32,17 +32,24 @@ export function PostGridItem({
 }) {
   const isVideo = post.type === "video";
   const [menuOpen, setMenuOpen] = useState(false);
+  const [coverFailed, setCoverFailed] = useState(false);
   const coverUrl = resolveStorageUrl(post.cover_url);
   const mediaUrl = resolveStorageUrl(post.media_url);
 
+  // Stable hue from title so audio tiles aren't identical black boxes
+  let hue = 210;
+  const label = post.title || post.id;
+  for (let i = 0; i < label.length; i++) hue = (hue + label.charCodeAt(i) * 17) % 360;
+
   const content = (
     <>
-      {coverUrl ? (
+      {coverUrl && !coverFailed ? (
         <img
           src={coverUrl}
           className="absolute inset-0 h-full w-full object-cover"
           alt={post.title}
           loading="lazy"
+          onError={() => setCoverFailed(true)}
         />
       ) : isVideo && mediaUrl ? (
         <video
@@ -53,7 +60,12 @@ export function PostGridItem({
           className="absolute inset-0 h-full w-full object-cover"
         />
       ) : (
-        <div className="absolute inset-0 bg-gradient-to-br from-card to-background" />
+        <div
+          className="absolute inset-0"
+          style={{
+            background: `linear-gradient(145deg, hsl(${hue} 42% 28%), hsl(${(hue + 40) % 360} 35% 12%) 55%, #0a0a0a)`,
+          }}
+        />
       )}
       {isVideo && (
         <div className="pointer-events-none absolute right-1.5 top-1.5 grid h-5 w-5 place-items-center rounded-full bg-black/60 backdrop-blur">
