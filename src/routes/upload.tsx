@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { Music, Film, Image as ImageIcon, Loader2, Sparkles, Video as VideoIcon, Type } from "lucide-react";
+import { AI_POST_GENERATOR_OPEN_TO_ALL } from "@/lib/ai-features";
 import { toastErrorMessage } from "@/lib/utils";
 
 const MAX_VIDEO_BYTES = 25 * 1024 * 1024;
@@ -179,7 +180,11 @@ function UploadPage() {
   };
 
   const handleGenerateMeta = async () => {
-    if (!isPro) { toast.error("AI captions are a Pro feature"); navigate({ to: "/pricing" }); return; }
+    if (!AI_POST_GENERATOR_OPEN_TO_ALL && !isPro) {
+      toast.error("AI captions are a Pro feature");
+      navigate({ to: "/pricing" });
+      return;
+    }
     const seed = idea.trim() || title.trim() || caption.trim();
     if (!seed) { toast.error("Type a quick idea or title first"); return; }
     setGenMetaLoading(true);
@@ -368,7 +373,9 @@ function UploadPage() {
                 <Sparkles className="h-3.5 w-3.5" /> Unlock AI features with Pro
               </span>
               <span className="mt-1 block text-muted-foreground">
-                AI cover art, AI title/caption/hashtags, lyric videos and scene generation are Pro perks. Upgrade →
+                {AI_POST_GENERATOR_OPEN_TO_ALL
+                  ? "AI cover art, lyric videos, and scene generation are Pro perks. Upgrade →"
+                  : "AI cover art, AI title/caption/hashtags, lyric videos and scene generation are Pro perks. Upgrade →"}
               </span>
             </Link>
           )}
