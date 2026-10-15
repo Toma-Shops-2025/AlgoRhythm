@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { AI_POST_GENERATOR_OPEN_TO_ALL } from "./ai-features";
 import { userIsPro, ProRequiredError } from "./pro.server";
 import { geminiJsonObject, geminiGenerateImage } from "./gemini.server";
 
@@ -19,8 +20,10 @@ export const generatePostMetadata = createServerFn({ method: "POST" })
       .parse(input),
   )
   .handler(async ({ data, context }) => {
-    const email = claimEmail(context.claims);
-    if (!(await userIsPro(context.userId, email))) throw new ProRequiredError();
+    if (!AI_POST_GENERATOR_OPEN_TO_ALL) {
+      const email = claimEmail(context.claims);
+      if (!(await userIsPro(context.userId, email))) throw new ProRequiredError();
+    }
 
     const kind = data.mediaType ?? "audio";
     const system =
