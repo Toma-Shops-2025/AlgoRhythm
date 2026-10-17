@@ -24,7 +24,7 @@ export function CookieBanner() {
   if (!visible) return null;
 
   return (
-    <div className="fixed inset-x-0 bottom-0 z-[60] border-t border-gold/30 bg-card/95 backdrop-blur-xl pb-[env(safe-area-inset-bottom)]">
+    <div className="fixed inset-x-0 bottom-0 z-[60] border-t border-gold/30 bg-card/95 backdrop-blur-xl pb-[var(--safe-area-inset-bottom)]">
       <div className="mx-auto flex max-w-3xl flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center">
         <p className="text-xs text-foreground/90 sm:flex-1">
           We use essential cookies to run AlgoRhythm and optional analytics cookies to improve it.
