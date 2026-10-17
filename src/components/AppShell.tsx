@@ -47,7 +47,7 @@ function BottomNav() {
   const { user } = useAuth();
   return (
     <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border/60 bg-background/85 backdrop-blur-xl">
-      <ul className="mx-auto grid max-w-md grid-cols-4 px-2 pb-[env(safe-area-inset-bottom)]">
+      <ul className="mx-auto grid max-w-md grid-cols-4 px-2 pb-[var(--safe-area-inset-bottom)]">
         {items.map(({ to, label, icon: Icon, primary, authed }) => {
           const target = authed && !user ? "/login" : to;
           const active = pathname === to;

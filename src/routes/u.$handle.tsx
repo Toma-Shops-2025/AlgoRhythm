@@ -156,7 +156,7 @@ function ProfilePage() {
     return (
       <AppShell>
         <div className="relative h-dvh w-full overflow-hidden bg-black">
-          <header className="absolute inset-x-0 top-0 z-30 flex items-center gap-3 px-4 pt-[calc(0.75rem+env(safe-area-inset-top))]">
+          <header className="absolute inset-x-0 top-0 z-30 flex items-center gap-3 px-4 pt-[calc(0.75rem+var(--safe-area-inset-top))]">
             <button onClick={() => setViewMode("grid")} className="flex h-9 w-9 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur"><ArrowLeft className="h-5 w-5" /></button>
             <div className="flex-1 text-center"><p className="font-medium text-sm text-white drop-shadow">@{p.handle}'s Posts</p></div>
             <div className="w-9" />

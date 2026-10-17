@@ -76,7 +76,7 @@ export function CommentsSheet({ postId, open, onClose }: { postId: string | null
             ))}
           </ul>
         </div>
-        <form onSubmit={submit} className="flex items-center gap-2 border-t border-border p-3 pb-[max(5rem,calc(env(safe-area-inset-bottom)+5rem))]">
+        <form onSubmit={submit} className="flex items-center gap-2 border-t border-border p-3 pb-[max(5rem,calc(var(--safe-area-inset-bottom)+5rem))]">
           <input value={body} onChange={(e) => setBody(e.target.value)} placeholder={user ? "Add a comment…" : "Sign in to comment"}
             className="flex-1 rounded-full border border-border bg-background px-4 py-2 text-sm outline-none focus:border-gold/50 disabled:opacity-60" />
           <button type="submit" aria-label="Post comment" className="grid h-9 w-9 place-items-center rounded-full bg-gradient-gold text-primary-foreground">
