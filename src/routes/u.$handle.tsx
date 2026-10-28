@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { queryOptions, useSuspenseQuery, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { AppShell } from "@/components/AppShell";
 import { TipDialog } from "@/components/TipDialog";
 import { CheckoutDialog } from "@/components/CheckoutDialog";
@@ -40,6 +40,10 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { useFeedPreferences } from "@/hooks/useFeedPreferences";
+import { scrollFeedToIndex } from "@/lib/feed-scroll";
+import { shouldConserveData } from "@/lib/network";
+import { hapticLight } from "@/lib/haptics";
 import { SITE_URL, SITE_NAME, buildProfileTitle, buildProfileDescription, absUrl } from "@/lib/seo";
 
 const profileQueryOptions = (handle: string) =>
@@ -92,9 +96,32 @@ function ProfilePage() {
   const [reportOpen, setReportOpen] = useState(false);
   const [viewMode, setViewMode] = useState<"grid" | "feed">("grid");
   const [activeIdx, setActiveIdx] = useState(0);
-  const [muted, setMuted] = useState(true);
+  const { preferences } = useFeedPreferences();
+  const [muted, setMuted] = useState(() => preferences.startMuted);
   const [volume, setVolume] = useState(1);
   const [commentsFor, setCommentsFor] = useState<string | null>(null);
+  const feedContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setMuted(preferences.startMuted);
+  }, [preferences.startMuted]);
+
+  useEffect(() => {
+    const root = feedContainerRef.current;
+    if (!root || viewMode !== "feed" || !data?.posts?.length) return;
+    const obs = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((e) => {
+          if (e.isIntersecting && e.intersectionRatio > 0.7) {
+            setActiveIdx(Number((e.target as HTMLElement).dataset.idx));
+          }
+        });
+      },
+      { root, threshold: [0.7] },
+    );
+    root.querySelectorAll<HTMLElement>("[data-idx]").forEach((el) => obs.observe(el));
+    return () => obs.disconnect();
+  }, [viewMode, data?.posts]);
 
   const [editingPost, setEditingPost] = useState<any | null>(null);
   const [editTitle, setEditTitle] = useState("");
@@ -161,9 +188,9 @@ function ProfilePage() {
             <div className="flex-1 text-center"><p className="font-medium text-sm text-white drop-shadow">@{p.handle}'s Posts</p></div>
             <div className="w-9" />
           </header>
-          <div className="h-full snap-y snap-mandatory overflow-y-scroll no-scrollbar">
+          <div ref={feedContainerRef} className="h-full snap-y snap-mandatory overflow-y-scroll no-scrollbar">
             {data.posts.map((post, idx) => (
-              <div key={post.id} className="h-full w-full snap-start relative">
+              <div key={post.id} data-idx={idx} className="h-full w-full snap-start relative">
                 <FeedItem
                   post={{ ...post, creator: p, comment_count: (post as any).comment_count ?? 0 } as any}
                   active={idx === activeIdx}
@@ -172,6 +199,7 @@ function ProfilePage() {
                   saved={false}
                   onLike={async () => {
                     if (!user) return navigate({ to: "/login" });
+                    if (preferences.hapticOnLike) hapticLight();
                     try {
                       const likeRes = await toggleLike({ data: { postId: post.id } });
                       if (likeRes.liked) {
@@ -200,6 +228,16 @@ function ProfilePage() {
                   onVolumeChange={(v) => {
                     setVolume(v);
                     setMuted(v <= 0);
+                  }}
+                  autoAdvance={preferences.autoScroll}
+                  playbackSpeed={preferences.playbackSpeed}
+                  showCaptions={preferences.showCaptions}
+                  conserveData={shouldConserveData(preferences.dataSaver)}
+                  onEnded={() => {
+                    if (!preferences.autoScroll || !data.posts.length) return;
+                    const next = idx < data.posts.length - 1 ? idx + 1 : idx;
+                    setActiveIdx(next);
+                    scrollFeedToIndex(feedContainerRef.current, next);
                   }}
                 />
                 {isOwner && (

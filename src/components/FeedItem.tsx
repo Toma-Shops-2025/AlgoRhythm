@@ -32,6 +32,7 @@ export type FeedPost = {
   cover_url: string | null;
   title: string;
   description: string | null;
+  pinned_comment?: string | null;
   tags: string[];
   like_count: number;
   comment_count: number;
@@ -62,6 +63,10 @@ export function FeedItem({
   onToggleMute,
   autoAdvance,
   onEnded,
+  playbackSpeed = 1,
+  onOpenPlaybackSettings,
+  showCaptions = false,
+  conserveData = false,
 }: {
   post: FeedPost;
   active: boolean;
@@ -81,6 +86,10 @@ export function FeedItem({
   onToggleMute?: () => void;
   autoAdvance?: boolean;
   onEnded?: () => void;
+  playbackSpeed?: number;
+  onOpenPlaybackSettings?: () => void;
+  showCaptions?: boolean;
+  conserveData?: boolean;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -110,6 +119,7 @@ export function FeedItem({
       el.currentTime = 0;
       el.muted = muted;
       el.volume = safeVolume;
+      el.playbackRate = playbackSpeed;
       reportedPlayRef.current = false;
       reportedCompleteRef.current = false;
       loopsRef.current = 0;
@@ -129,7 +139,7 @@ export function FeedItem({
     }
     // Only restart when switching posts — not when toggling mute.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active, post.id, post.type]);
+  }, [active, post.id, post.type, playbackSpeed]);
 
   // Unmute / volume — keep playback position (TikTok-style).
   useEffect(() => {
@@ -137,10 +147,11 @@ export function FeedItem({
     if (!el || !active) return;
     el.muted = muted;
     el.volume = safeVolume;
+    el.playbackRate = playbackSpeed;
     if (!muted) {
       void el.play().then(() => setPlaying(true)).catch(() => setPlaying(false));
     }
-  }, [muted, safeVolume, active, post.type]);
+  }, [muted, safeVolume, active, post.type, playbackSpeed]);
 
   // Stop audio when user leaves the tab / minimizes the window.
   useEffect(() => {
@@ -247,6 +258,8 @@ export function FeedItem({
   const mediaUrl = resolveStorageUrl(post.media_url);
   const coverUrl = resolveStorageUrl(post.cover_url);
   const loadMedia = active;
+  const mediaPreload = !loadMedia ? "none" : conserveData ? "metadata" : "auto";
+  const captionText = [post.description?.trim(), post.pinned_comment?.trim()].filter(Boolean).join("\n");
 
   return (
     <section className="relative h-dvh w-full snap-start overflow-hidden bg-black">
@@ -256,7 +269,7 @@ export function FeedItem({
           src={loadMedia ? mediaUrl : undefined}
           poster={coverUrl || undefined}
           crossOrigin="anonymous"
-          preload={loadMedia ? "auto" : "none"}
+          preload={mediaPreload}
           playsInline
           muted={muted}
           loop={!autoAdvance}
@@ -275,7 +288,7 @@ export function FeedItem({
             ref={audioRef}
             src={loadMedia ? mediaUrl : undefined}
             crossOrigin="anonymous"
-            preload={loadMedia ? "auto" : "none"}
+            preload={mediaPreload}
             muted={muted}
             loop={!autoAdvance}
           />
@@ -387,6 +400,11 @@ export function FeedItem({
             className="z-[80] min-w-[11rem]"
             onClick={(e) => e.stopPropagation()}
           >
+            {onOpenPlaybackSettings && (
+              <DropdownMenuItem onSelect={() => onOpenPlaybackSettings()}>
+                Playback &amp; auto scroll
+              </DropdownMenuItem>
+            )}
             {user && post.creator && user.id === post.creator.id ? (
               <DropdownMenuItem disabled>This is your post</DropdownMenuItem>
             ) : (
@@ -462,7 +480,9 @@ export function FeedItem({
           )}
         </div>
         <h2 className="mt-3 text-base font-medium">{post.title}</h2>
-        {post.description && <p className="mt-1 line-clamp-2 text-sm text-white/80">{post.description}</p>}
+        {post.description && !showCaptions && (
+          <p className="mt-1 line-clamp-2 text-sm text-white/80">{post.description}</p>
+        )}
         {tags.length > 0 && (
           <div className="mt-2 flex flex-wrap gap-1.5">
             {tags.slice(0, 4).map((t) => (
@@ -471,6 +491,14 @@ export function FeedItem({
           </div>
         )}
       </div>
+      {showCaptions && captionText && (
+        <div
+          className="pointer-events-none absolute inset-x-4 bottom-36 z-[25] max-h-[28vh] overflow-hidden rounded-lg bg-black/55 px-3 py-2 text-center backdrop-blur-sm"
+          aria-live="polite"
+        >
+          <p className="text-sm font-medium leading-snug text-white drop-shadow-md">{captionText}</p>
+        </div>
+      )}
       {post.creator && (
         <TipDialog
           open={tipOpen}

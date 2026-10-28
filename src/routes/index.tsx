@@ -11,6 +11,15 @@ import { newSessionSeed } from "@/lib/shuffle";
 import { toggleLike, toggleFollow, getMyInteractions } from "@/lib/social.functions";
 import { toggleSave } from "@/lib/saves.functions";
 import { toast } from "sonner";
+import { useFeedPreferences } from "@/hooks/useFeedPreferences";
+import {
+  FeedPlaybackSettingsSheet,
+  FeedPlaybackSettingsTrigger,
+} from "@/components/FeedPlaybackSettings";
+import { scrollFeedToIndex } from "@/lib/feed-scroll";
+import { FeedAutoScrollHint } from "@/components/FeedAutoScrollHint";
+import { shouldConserveData } from "@/lib/network";
+import { hapticLight } from "@/lib/haptics";
 
 export const Route = createFileRoute("/")({
   component: FeedPage,
@@ -20,11 +29,17 @@ function FeedPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const qc = useQueryClient();
+  const { preferences } = useFeedPreferences();
   const [active, setActive] = useState(0);
-  const [muted, setMuted] = useState(true);
+  const [muted, setMuted] = useState(() => preferences.startMuted);
   const [volume, setVolume] = useState(1);
   const [commentsFor, setCommentsFor] = useState<string | null>(null);
+  const [playbackSheetOpen, setPlaybackSheetOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setMuted(preferences.startMuted);
+  }, [preferences.startMuted]);
 
   const [likedIds, setLikedIds] = useState<Set<string>>(() => new Set());
   const [savedIds, setSavedIds] = useState<Set<string>>(() => new Set());
@@ -136,6 +151,7 @@ function FeedPage() {
   const handleLike = async (post: FeedPost) => {
     if (!requireAuth()) return;
     const wasLiked = likedIds.has(post.id);
+    if (!wasLiked && preferences.hapticOnLike) hapticLight();
     const wasSaved = savedIds.has(post.id);
 
     setLikedIds((prev) => {
@@ -259,8 +275,20 @@ function FeedPage() {
     );
   }
 
+  const advanceToIndex = (next: number) => {
+    if (next < 0 || next >= basePosts.length) return;
+    setActive(next);
+    scrollFeedToIndex(containerRef.current, next);
+  };
+
   return (
     <AppShell>
+      <FeedAutoScrollHint onOpenSettings={() => setPlaybackSheetOpen(true)} />
+      {basePosts.length > 0 && !isLoading && (
+        <FeedPlaybackSettingsTrigger
+          className="fixed right-3 z-40 top-[calc(0.75rem+var(--safe-area-inset-top))]"
+        />
+      )}
       <div
         ref={containerRef}
         className="h-dvh snap-y snap-mandatory overflow-y-scroll bg-black no-scrollbar"
@@ -317,6 +345,16 @@ function FeedPage() {
                 onUnmute={unmuteFeed}
                 onMute={() => setMuted(true)}
                 onVolumeChange={setFeedVolume}
+                autoAdvance={preferences.autoScroll}
+                playbackSpeed={preferences.playbackSpeed}
+                showCaptions={preferences.showCaptions}
+                conserveData={shouldConserveData(preferences.dataSaver)}
+                onOpenPlaybackSettings={() => setPlaybackSheetOpen(true)}
+                onEnded={() => {
+                  if (!preferences.autoScroll || basePosts.length === 0) return;
+                  const next = idx < basePosts.length - 1 ? idx + 1 : idx;
+                  advanceToIndex(next);
+                }}
               />
             </div>
           );
@@ -332,6 +370,7 @@ function FeedPage() {
         open={!!commentsFor}
         onClose={() => setCommentsFor(null)}
       />
+      <FeedPlaybackSettingsSheet open={playbackSheetOpen} onOpenChange={setPlaybackSheetOpen} />
     </AppShell>
   );
 }
