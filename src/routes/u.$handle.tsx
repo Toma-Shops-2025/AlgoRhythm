@@ -42,6 +42,8 @@ import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { useFeedPreferences } from "@/hooks/useFeedPreferences";
 import { scrollFeedToIndex } from "@/lib/feed-scroll";
+import { shouldConserveData } from "@/lib/network";
+import { hapticLight } from "@/lib/haptics";
 import { SITE_URL, SITE_NAME, buildProfileTitle, buildProfileDescription, absUrl } from "@/lib/seo";
 
 const profileQueryOptions = (handle: string) =>
@@ -197,6 +199,7 @@ function ProfilePage() {
                   saved={false}
                   onLike={async () => {
                     if (!user) return navigate({ to: "/login" });
+                    if (preferences.hapticOnLike) hapticLight();
                     try {
                       const likeRes = await toggleLike({ data: { postId: post.id } });
                       if (likeRes.liked) {
@@ -228,6 +231,8 @@ function ProfilePage() {
                   }}
                   autoAdvance={preferences.autoScroll}
                   playbackSpeed={preferences.playbackSpeed}
+                  showCaptions={preferences.showCaptions}
+                  conserveData={shouldConserveData(preferences.dataSaver)}
                   onEnded={() => {
                     if (!preferences.autoScroll || !data.posts.length) return;
                     const next = idx < data.posts.length - 1 ? idx + 1 : idx;

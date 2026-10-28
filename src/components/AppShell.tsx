@@ -1,6 +1,7 @@
 import { Plus, User, Search, Home } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/lib/auth";
+import { useFeedPreferences } from "@/hooks/useFeedPreferences";
 
 type NavItem = {
   to: string;
@@ -9,13 +10,6 @@ type NavItem = {
   primary?: boolean;
   authed?: boolean;
 };
-
-const items: NavItem[] = [
-  { to: "/", label: "Feed", icon: Home },
-  { to: "/discover", label: "Discover", icon: Search },
-  { to: "/upload", label: "Post", icon: Plus, primary: true, authed: true },
-  { to: "/me", label: "Me", icon: User, authed: true },
-];
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   return (
@@ -45,6 +39,23 @@ function Footer() {
 function BottomNav() {
   const pathname = typeof window !== "undefined" ? window.location.pathname : "/";
   const { user } = useAuth();
+  const { preferences } = useFeedPreferences();
+
+  const items: NavItem[] = [
+    {
+      to: preferences.startOnDiscover ? "/discover" : "/",
+      label: preferences.startOnDiscover ? "Discover" : "Feed",
+      icon: preferences.startOnDiscover ? Search : Home,
+    },
+    {
+      to: preferences.startOnDiscover ? "/" : "/discover",
+      label: preferences.startOnDiscover ? "For You" : "Discover",
+      icon: preferences.startOnDiscover ? Home : Search,
+    },
+    { to: "/upload", label: "Post", icon: Plus, primary: true, authed: true },
+    { to: "/me", label: "Me", icon: User, authed: true },
+  ];
+
   return (
     <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-border/60 bg-background/85 backdrop-blur-xl">
       <ul className="mx-auto grid max-w-md grid-cols-4 px-2 pb-[var(--safe-area-inset-bottom)]">

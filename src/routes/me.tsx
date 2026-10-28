@@ -37,6 +37,8 @@ import { toast } from "sonner";
 import { FeedPreferencesCard } from "@/components/FeedPlaybackSettings";
 import { useFeedPreferences } from "@/hooks/useFeedPreferences";
 import { scrollFeedToIndex } from "@/lib/feed-scroll";
+import { shouldConserveData } from "@/lib/network";
+import { hapticLight } from "@/lib/haptics";
 
 export const Route = createFileRoute("/me")({
   head: () => ({
@@ -252,6 +254,7 @@ function MePage() {
                   saved={tab === "library"}
                   onLike={async () => {
                     if (!user) return navigate({ to: "/login" });
+                    if (preferences.hapticOnLike) hapticLight();
                     try {
                       const likeRes = await toggleLike({ data: { postId: post.id } });
                       if (likeRes.liked) {
@@ -288,6 +291,8 @@ function MePage() {
                   }}
                   autoAdvance={preferences.autoScroll}
                   playbackSpeed={preferences.playbackSpeed}
+                  showCaptions={preferences.showCaptions}
+                  conserveData={shouldConserveData(preferences.dataSaver)}
                   onEnded={() => {
                     if (!preferences.autoScroll || feedItems.length === 0) return;
                     const next =

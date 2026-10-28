@@ -17,6 +17,9 @@ import {
   FeedPlaybackSettingsTrigger,
 } from "@/components/FeedPlaybackSettings";
 import { scrollFeedToIndex } from "@/lib/feed-scroll";
+import { FeedAutoScrollHint } from "@/components/FeedAutoScrollHint";
+import { shouldConserveData } from "@/lib/network";
+import { hapticLight } from "@/lib/haptics";
 
 export const Route = createFileRoute("/")({
   component: FeedPage,
@@ -148,6 +151,7 @@ function FeedPage() {
   const handleLike = async (post: FeedPost) => {
     if (!requireAuth()) return;
     const wasLiked = likedIds.has(post.id);
+    if (!wasLiked && preferences.hapticOnLike) hapticLight();
     const wasSaved = savedIds.has(post.id);
 
     setLikedIds((prev) => {
@@ -279,6 +283,7 @@ function FeedPage() {
 
   return (
     <AppShell>
+      <FeedAutoScrollHint onOpenSettings={() => setPlaybackSheetOpen(true)} />
       {basePosts.length > 0 && !isLoading && (
         <FeedPlaybackSettingsTrigger
           className="fixed right-3 z-40 top-[calc(0.75rem+var(--safe-area-inset-top))]"
@@ -342,6 +347,8 @@ function FeedPage() {
                 onVolumeChange={setFeedVolume}
                 autoAdvance={preferences.autoScroll}
                 playbackSpeed={preferences.playbackSpeed}
+                showCaptions={preferences.showCaptions}
+                conserveData={shouldConserveData(preferences.dataSaver)}
                 onOpenPlaybackSettings={() => setPlaybackSheetOpen(true)}
                 onEnded={() => {
                   if (!preferences.autoScroll || basePosts.length === 0) return;
