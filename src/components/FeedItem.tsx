@@ -62,6 +62,8 @@ export function FeedItem({
   onToggleMute,
   autoAdvance,
   onEnded,
+  playbackSpeed = 1,
+  onOpenPlaybackSettings,
 }: {
   post: FeedPost;
   active: boolean;
@@ -81,6 +83,8 @@ export function FeedItem({
   onToggleMute?: () => void;
   autoAdvance?: boolean;
   onEnded?: () => void;
+  playbackSpeed?: number;
+  onOpenPlaybackSettings?: () => void;
 }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -110,6 +114,7 @@ export function FeedItem({
       el.currentTime = 0;
       el.muted = muted;
       el.volume = safeVolume;
+      el.playbackRate = playbackSpeed;
       reportedPlayRef.current = false;
       reportedCompleteRef.current = false;
       loopsRef.current = 0;
@@ -129,7 +134,7 @@ export function FeedItem({
     }
     // Only restart when switching posts — not when toggling mute.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [active, post.id, post.type]);
+  }, [active, post.id, post.type, playbackSpeed]);
 
   // Unmute / volume — keep playback position (TikTok-style).
   useEffect(() => {
@@ -137,10 +142,11 @@ export function FeedItem({
     if (!el || !active) return;
     el.muted = muted;
     el.volume = safeVolume;
+    el.playbackRate = playbackSpeed;
     if (!muted) {
       void el.play().then(() => setPlaying(true)).catch(() => setPlaying(false));
     }
-  }, [muted, safeVolume, active, post.type]);
+  }, [muted, safeVolume, active, post.type, playbackSpeed]);
 
   // Stop audio when user leaves the tab / minimizes the window.
   useEffect(() => {
@@ -387,6 +393,11 @@ export function FeedItem({
             className="z-[80] min-w-[11rem]"
             onClick={(e) => e.stopPropagation()}
           >
+            {onOpenPlaybackSettings && (
+              <DropdownMenuItem onSelect={() => onOpenPlaybackSettings()}>
+                Playback &amp; auto scroll
+              </DropdownMenuItem>
+            )}
             {user && post.creator && user.id === post.creator.id ? (
               <DropdownMenuItem disabled>This is your post</DropdownMenuItem>
             ) : (
